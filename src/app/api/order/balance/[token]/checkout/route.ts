@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { stripe } from "@/lib/stripe";
+import { square } from "@/lib/square";
 import { getSiteUrl } from "@/lib/site-url";
+import { createSquarePaymentLink } from "@/lib/square-payment-link";
 
 export async function POST(
   _req: Request,
   { params }: { params: Promise<{ token: string }> }
 ) {
-  if (!stripe) {
+  if (!square) {
     return NextResponse.json({ error: "Online payment not available" }, { status: 503 });
   }
 
@@ -27,30 +28,18 @@ export async function POST(
   }
 
   const siteUrl = await getSiteUrl();
-  const session = await stripe.checkout.sessions.create({
-    mode: "payment",
-    customer_email: order.customerEmail,
-    line_items: [
-      {
-        price_data: {
-          currency: "usd",
-          unit_amount: order.balanceDueCents,
-          product_data: {
-            name: `Balance for order ${order.orderNumber}`,
-            description: "B's Sweet Spot — remaining balance",
-          },
-        },
-        quantity: 1,
-      },
-    ],
+  const { url } = await createSquarePaymentLink({
+    name: `Balance for order ${order.orderNumber}`,
+    chargeCents: order.balanceDueCents,
+    redirectUrl: `${siteUrl}/order/status/${token}?balancePaid=1`,
+    buyerEmail: order.customerEmail,
     metadata: {
       orderId: order.id,
       orderNumber: order.orderNumber,
       paymentType: "balance",
+      paidInFull: true,
     },
-    success_url: `${siteUrl}/order/status/${token}?balancePaid=1`,
-    cancel_url: `${siteUrl}/order/status/${token}`,
   });
 
-  return NextResponse.json({ url: session.url });
+  return NextResponse.json({ url });
 }

@@ -6,10 +6,10 @@ import { formatCents } from "@/lib/utils";
 type Props = {
   token: string;
   balanceDueCents: number;
-  stripeEnabled: boolean;
+  onlinePaymentEnabled: boolean;
 };
 
-export function PayBalanceButton({ token, balanceDueCents, stripeEnabled }: Props) {
+export function PayBalanceButton({ token, balanceDueCents, onlinePaymentEnabled }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -29,7 +29,7 @@ export function PayBalanceButton({ token, balanceDueCents, stripeEnabled }: Prop
   return (
     <div className="mt-4 rounded-xl border border-[var(--sage)]/30 bg-[var(--sage)]/10 p-4">
       <p className="font-semibold">Remaining balance: {formatCents(balanceDueCents)}</p>
-      {stripeEnabled ? (
+      {onlinePaymentEnabled ? (
         <>
           <p className="mt-1 text-sm text-[var(--warm-gray)]">
             Pay online now, or bring cash, Venmo, or Cash App at pickup/delivery.

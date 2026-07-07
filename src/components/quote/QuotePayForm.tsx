@@ -9,7 +9,7 @@ type Props = {
   quotedPriceCents: number;
   depositPercent: number;
   quoteMessage: string | null;
-  stripeEnabled: boolean;
+  onlinePaymentEnabled: boolean;
 };
 
 export function QuotePayForm({
@@ -18,7 +18,7 @@ export function QuotePayForm({
   quotedPriceCents,
   depositPercent,
   quoteMessage,
-  stripeEnabled,
+  onlinePaymentEnabled,
 }: Props) {
   const [paymentChoice, setPaymentChoice] = useState<"deposit" | "full">("deposit");
   const [loading, setLoading] = useState(false);
@@ -95,15 +95,14 @@ export function QuotePayForm({
         </label>
       </div>
 
-      {stripeEnabled ? (
-        <button type="button" onClick={handlePay} disabled={loading} className="btn-primary mt-6 w-full">
-          {loading
-            ? "Redirecting..."
-            : paymentChoice === "full"
-              ? `Approve & Pay ${formatCents(chargeCents)} in Full`
-              : `Approve & Pay ${formatCents(chargeCents)} Deposit`}
-        </button>
-      ) : (
+      <button type="button" onClick={handlePay} disabled={loading || !onlinePaymentEnabled} className="btn-primary mt-6 w-full">
+        {loading
+          ? "Redirecting..."
+          : paymentChoice === "full"
+            ? `Approve & Pay ${formatCents(chargeCents)} in Full`
+            : `Approve & Pay ${formatCents(chargeCents)} Deposit`}
+      </button>
+      {!onlinePaymentEnabled && (
         <p className="mt-6 rounded-xl bg-[var(--blush)]/40 p-4 text-sm text-[var(--warm-gray)]">
           Online payment is not configured yet. Brandy will contact you about paying via Venmo, Cash App, or cash.
         </p>

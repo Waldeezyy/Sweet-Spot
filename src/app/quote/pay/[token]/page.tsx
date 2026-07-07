@@ -3,7 +3,7 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { prisma } from "@/lib/db";
 import { QuotePayForm } from "@/components/quote/QuotePayForm";
-import { stripe } from "@/lib/stripe";
+import { isSquareConfigured } from "@/lib/square";
 
 export default async function QuotePayPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
@@ -46,7 +46,7 @@ export default async function QuotePayPage({ params }: { params: Promise<{ token
         quotedPriceCents={quote.quotedPriceCents}
         depositPercent={settings?.depositPercent ?? 25}
         quoteMessage={quote.quoteMessage}
-        stripeEnabled={Boolean(stripe)}
+        onlinePaymentEnabled={isSquareConfigured()}
       />
       <Link href={`/quote/status/${token}`} className="mt-4 block text-center text-sm text-[var(--rose)] hover:underline">
         View quote status

@@ -19,7 +19,7 @@ import {
   type OrderEmailItem,
 } from "@/lib/order-email-html";
 import type { FulfillmentType } from "@prisma/client";
-import { stripe } from "@/lib/stripe";
+import { isSquareConfigured } from "@/lib/square";
 
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
@@ -223,7 +223,7 @@ export async function sendOrderStatusUpdate(params: {
           balanceDueCents: params.balanceDueCents,
           fulfillmentType: params.fulfillmentType,
           trackLink,
-          stripeEnabled: Boolean(stripe),
+          onlinePaymentEnabled: isSquareConfigured(),
         })
       : "";
 

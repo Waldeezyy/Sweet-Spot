@@ -1,15 +1,16 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
-import { stripe } from "@/lib/stripe";
+import { square } from "@/lib/square";
 import { getSiteUrl } from "@/lib/site-url";
 import { getPaymentPolicyForTotal, resolveCheckoutPayment } from "@/lib/payment-policy";
+import { createSquarePaymentLink } from "@/lib/square-payment-link";
 
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ token: string }> }
 ) {
-  if (!stripe) {
+  if (!square) {
     return NextResponse.json({ error: "Online payment not available" }, { status: 503 });
   }
 
@@ -47,41 +48,28 @@ export async function POST(
 
   const siteUrl = await getSiteUrl();
   const chargeLabel = payment.paidInFull ? "paid in full" : "deposit";
-  const session = await stripe.checkout.sessions.create({
-    mode: "payment",
-    customer_email: order.customerEmail,
-    line_items: [
-      {
-        price_data: {
-          currency: "usd",
-          unit_amount: payment.chargeCents,
-          product_data: {
-            name: `Order ${order.orderNumber} — ${chargeLabel}`,
-            description: `B's Sweet Spot rush order (includes rush fee)`,
-          },
-        },
-        quantity: 1,
-      },
-    ],
+  const { url, paymentLinkId } = await createSquarePaymentLink({
+    name: `Order ${order.orderNumber} — ${chargeLabel}`,
+    chargeCents: payment.chargeCents,
+    redirectUrl: `${siteUrl}/order/success?order=${order.orderNumber}`,
+    buyerEmail: order.customerEmail,
     metadata: {
       orderId: order.id,
       orderNumber: order.orderNumber,
-      paidInFull: payment.paidInFull ? "true" : "false",
       paymentType: "deposit",
+      paidInFull: payment.paidInFull,
     },
-    success_url: `${siteUrl}/order/success?order=${order.orderNumber}`,
-    cancel_url: `${siteUrl}/order/pay/${token}`,
   });
 
   await prisma.order.update({
     where: { id: order.id },
     data: {
-      stripeSessionId: session.id,
+      squarePaymentLinkId: paymentLinkId,
       depositCents: payment.depositCents,
       balanceDueCents: payment.balanceDueCents,
       paidInFull: payment.paidInFull,
     },
   });
 
-  return NextResponse.json({ url: session.url });
+  return NextResponse.json({ url });
 }

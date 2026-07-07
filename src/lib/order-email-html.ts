@@ -70,11 +70,11 @@ export function buildBalanceDueInstructionsHtml(params: {
   balanceDueCents: number;
   fulfillmentType: FulfillmentType;
   trackLink: string;
-  stripeEnabled?: boolean;
+  onlinePaymentEnabled?: boolean;
 }): string {
   if (params.balanceDueCents <= 0) return "";
   const when = params.fulfillmentType === "DELIVERY" ? "at delivery" : "at pickup";
-  const onlinePay = params.stripeEnabled
+  const onlinePay = params.onlinePaymentEnabled
     ? `
       <p style="margin: 16px 0 0;">
         <a href="${params.trackLink}" style="display: inline-block; padding: 12px 20px; background: #7d8b6f; color: #fff; text-decoration: none; border-radius: 8px; font-weight: 600;">

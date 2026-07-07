@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { format } from "date-fns";
 import { prisma } from "@/lib/db";
-import { stripe } from "@/lib/stripe";
+import { square } from "@/lib/square";
+import { createSquarePaymentLink } from "@/lib/square-payment-link";
 import { getSiteUrl } from "@/lib/site-url";
 import { generateOrderNumber } from "@/lib/utils";
 import { hasSemiCustom, type CartItem } from "@/lib/cart";
@@ -167,7 +168,7 @@ export async function POST(req: Request) {
 
   const chargeLabel = payment.paidInFull ? "Payment" : "Deposit";
 
-  if (!stripe) {
+  if (!square) {
     const paid = await prisma.order.update({
       where: { id: order.id },
       data: {
@@ -195,38 +196,23 @@ export async function POST(req: Request) {
   }
 
   const siteUrl = await getSiteUrl();
-  const session = await stripe.checkout.sessions.create({
-    mode: "payment",
-    customer_email: meta.customerEmail,
-    line_items: [
-      {
-        price_data: {
-          currency: "usd",
-          unit_amount: payment.chargeCents,
-          product_data: {
-            name: `${chargeLabel} for order ${orderNumber}`,
-            description: payment.paidInFull
-              ? "B's Sweet Spot — paid in full"
-              : `B's Sweet Spot — ${settings.depositPercent}% deposit`,
-          },
-        },
-        quantity: 1,
-      },
-    ],
+  const { url, paymentLinkId } = await createSquarePaymentLink({
+    name: `${chargeLabel} for order ${orderNumber}`,
+    chargeCents: payment.chargeCents,
+    redirectUrl: `${siteUrl}/order/success?order=${orderNumber}`,
+    buyerEmail: meta.customerEmail,
     metadata: {
       orderId: order.id,
       orderNumber,
-      paidInFull: payment.paidInFull ? "true" : "false",
       paymentType: "deposit",
+      paidInFull: payment.paidInFull,
     },
-    success_url: `${siteUrl}/order/success?order=${orderNumber}`,
-    cancel_url: `${siteUrl}/order?cancelled=1`,
   });
 
   await prisma.order.update({
     where: { id: order.id },
-    data: { stripeSessionId: session.id },
+    data: { squarePaymentLinkId: paymentLinkId },
   });
 
-  return NextResponse.json({ url: session.url });
+  return NextResponse.json({ url });
 }

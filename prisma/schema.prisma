@@ -229,8 +229,8 @@ model Order {
   balanceDueCents     Int
   paidInFull          Boolean         @default(false)
   depositPaid         Boolean         @default(false)
-  stripeSessionId     String?
-  stripePaymentIntent String?
+  squarePaymentLinkId String?
+  squarePaymentId     String?
   isRush              Boolean         @default(false)
   paymentToken        String?         @unique
   adminNotes          String?         @db.Text

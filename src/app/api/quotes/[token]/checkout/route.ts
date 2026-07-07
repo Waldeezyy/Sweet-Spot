@@ -1,14 +1,15 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
-import { stripe } from "@/lib/stripe";
+import { square } from "@/lib/square";
 import { getSiteUrl } from "@/lib/site-url";
+import { createSquarePaymentLink } from "@/lib/square-payment-link";
 
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ token: string }> }
 ) {
-  if (!stripe) {
+  if (!square) {
     return NextResponse.json({ error: "Online payment not available" }, { status: 503 });
   }
 
@@ -28,28 +29,16 @@ export async function POST(
     : Math.round(quote.quotedPriceCents * (depositPercent / 100));
 
   const siteUrl = await getSiteUrl();
-  const session = await stripe.checkout.sessions.create({
-    mode: "payment",
-    customer_email: quote.customerEmail,
-    line_items: [
-      {
-        price_data: {
-          currency: "usd",
-          unit_amount: chargeCents,
-          product_data: {
-            name: paidInFull ? "Custom order — paid in full" : "Custom order deposit",
-            description: `B's Sweet Spot — ${quote.occasion}`,
-          },
-        },
-        quantity: 1,
-      },
-    ],
+  const { url } = await createSquarePaymentLink({
+    name: paidInFull ? "Custom order — paid in full" : "Custom order deposit",
+    chargeCents,
+    redirectUrl: `${siteUrl}/quote/success?token=${token}`,
+    buyerEmail: quote.customerEmail,
     metadata: {
       quoteId: quote.id,
-      paidInFull: paidInFull ? "true" : "false",
+      paymentType: "deposit",
+      paidInFull,
     },
-    success_url: `${siteUrl}/quote/success?token=${token}`,
-    cancel_url: `${siteUrl}/quote/pay/${token}`,
   });
 
   await prisma.quoteRequest.update({
@@ -57,5 +46,5 @@ export async function POST(
     data: { status: "PENDING_DEPOSIT" },
   });
 
-  return NextResponse.json({ url: session.url });
+  return NextResponse.json({ url });
 }

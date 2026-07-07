@@ -8,7 +8,7 @@ import { getTimelineStep, STATUS_LABELS } from "@/lib/order-tracking";
 import { formatOrderItemLine } from "@/lib/order-item-display";
 import { PayBalanceButton } from "@/components/order/PayBalanceButton";
 import { BalancePaidNotice } from "@/components/order/BalancePaidNotice";
-import { stripe } from "@/lib/stripe";
+import { isSquareConfigured } from "@/lib/square";
 
 const TIMELINE = [
   { step: 1, label: "Confirmed" },
@@ -102,7 +102,7 @@ export default async function OrderStatusPage({
           <PayBalanceButton
             token={token}
             balanceDueCents={order.balanceDueCents}
-            stripeEnabled={Boolean(stripe)}
+            onlinePaymentEnabled={isSquareConfigured()}
           />
         )}
         {order.status === "IN_PROGRESS" && order.estimatedReadyAt && (

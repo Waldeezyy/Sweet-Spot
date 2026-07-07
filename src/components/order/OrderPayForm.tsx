@@ -12,7 +12,7 @@ type Props = {
   rushFeeCents: number;
   finalTotalCents: number;
   policy: PaymentPolicy;
-  stripeEnabled: boolean;
+  onlinePaymentEnabled: boolean;
 };
 
 export function OrderPayForm({
@@ -23,7 +23,7 @@ export function OrderPayForm({
   rushFeeCents,
   finalTotalCents,
   policy,
-  stripeEnabled,
+  onlinePaymentEnabled,
 }: Props) {
   const [paymentChoice, setPaymentChoice] = useState<"deposit" | "full">(
     policy.payInFullOnly ? "full" : "deposit"
@@ -120,7 +120,7 @@ export function OrderPayForm({
       </div>
 
       <div className="mt-6 space-y-3">
-        {!stripeEnabled && (
+        {!onlinePaymentEnabled && (
           <p className="rounded-xl bg-[var(--blush)]/40 p-4 text-sm text-[var(--warm-gray)]">
             Online payment is not configured yet. Brandy will contact you about paying via Venmo, Cash App, or cash.
           </p>
