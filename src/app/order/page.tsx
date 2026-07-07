@@ -8,6 +8,8 @@ import { hasSemiCustom } from "@/lib/cart";
 import { getPaymentPolicy, resolveCheckoutPayment, type PaymentChoice } from "@/lib/payment-policy";
 import { formatCartItemDetails } from "@/lib/order-item-display";
 import { OrderSteps } from "@/components/order/OrderSteps";
+import { RushOrderNotice } from "@/components/order/RushOrderNotice";
+import { isPastScheduledDate, isRushOrderDate, todayDateInputValue } from "@/lib/rush-order";
 
 type Settings = {
   orderMinimumCents: number;
@@ -53,6 +55,9 @@ export default function OrderPage() {
     : null;
 
   const semiCustom = hasSemiCustom(items);
+  const isRush =
+    Boolean(meta.scheduledDate && settings) &&
+    isRushOrderDate(meta.scheduledDate!, settings!.leadTimeDays);
 
   function validateStep(): boolean {
     const e: Record<string, string> = {};
@@ -64,11 +69,8 @@ export default function OrderPage() {
     }
     if (step === 4) {
       if (!meta.scheduledDate) e.date = "Please pick a date.";
-      else if (settings) {
-        const min = new Date();
-        min.setDate(min.getDate() + settings.leadTimeDays);
-        min.setHours(0, 0, 0, 0);
-        if (new Date(meta.scheduledDate) < min) e.date = `Please pick a date at least ${settings.leadTimeDays} days from today.`;
+      else if (isPastScheduledDate(meta.scheduledDate)) e.date = "Please pick today or a future date.";
+      else {
         const blocked = blockedDates.find((d) => d.date === meta.scheduledDate && d.isBlocked);
         if (blocked) e.date = "This date is not available. Please choose another.";
       }
@@ -186,9 +188,16 @@ export default function OrderPage() {
           <input
             type="date"
             className="input max-w-xs"
+            min={todayDateInputValue()}
             value={meta.scheduledDate ?? ""}
             onChange={(e) => setMeta({ ...meta, scheduledDate: e.target.value })}
           />
+          {settings && (
+            <p className="mt-2 text-sm text-[var(--warm-gray)]">
+              Standard lead time is {settings.leadTimeDays} days. Dates sooner than that are rush orders.
+            </p>
+          )}
+          {isRush && <RushOrderNotice />}
           {errors.date && <p className="mt-2 text-sm text-red-600">{errors.date}</p>}
         </section>
       )}
@@ -212,7 +221,17 @@ export default function OrderPage() {
           <div className="rounded-xl bg-[var(--cream)] p-4 text-sm space-y-1">
             <p>Subtotal: {formatCents(subtotalCents)}</p>
             {deliveryFee > 0 && <p>Delivery: {formatCents(deliveryFee)}</p>}
+            {isRush && (
+              <p className="text-amber-900">
+                Rush fee (if approved): not included in total — Brandy will confirm
+              </p>
+            )}
             <p className="font-semibold">Order total: {formatCents(totalCents)}</p>
+            {isRush && (
+              <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3">
+                <RushOrderNotice compact />
+              </div>
+            )}
 
             {policy && (
               <>

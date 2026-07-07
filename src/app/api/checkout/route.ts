@@ -3,10 +3,11 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { stripe } from "@/lib/stripe";
 import { getSiteUrl } from "@/lib/site-url";
-import { generateOrderNumber } from "@/lib/utils";
+import { generateOrderNumber, formatCents } from "@/lib/utils";
 import { hasSemiCustom, type CartItem } from "@/lib/cart";
 import { getPaymentPolicy, resolveCheckoutPayment } from "@/lib/payment-policy";
 import { sendOrderConfirmationFromOrder, sendAdminNewOrder } from "@/lib/email";
+import { isPastScheduledDate, isRushOrderDate, RUSH_FEE_CENTS } from "@/lib/rush-order";
 
 const schema = z.object({
   items: z.array(z.any()),
@@ -36,6 +37,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Order below minimum" }, { status: 400 });
   }
 
+  if (isPastScheduledDate(meta.scheduledDate)) {
+    return NextResponse.json({ error: "Please pick today or a future date." }, { status: 400 });
+  }
+
+  const isRush = isRushOrderDate(meta.scheduledDate, settings.leadTimeDays);
+
   const policy = getPaymentPolicy(items as CartItem[], totalCents, {
     depositPercent: settings.depositPercent,
     fullPaymentThresholdCents: settings.fullPaymentThresholdCents,
@@ -47,7 +54,7 @@ export async function POST(req: Request) {
   );
 
   const orderNumber = generateOrderNumber();
-  const needsReview = hasSemiCustom(items as CartItem[]);
+  const needsReview = hasSemiCustom(items as CartItem[]) || isRush;
   const status = needsReview ? "PENDING_REVIEW" : payment.paidInFull ? "CONFIRMED" : "PENDING_DEPOSIT";
 
   const order = await prisma.order.create({
@@ -60,6 +67,7 @@ export async function POST(req: Request) {
       fulfillmentType: meta.fulfillmentType,
       deliveryAddress: meta.deliveryAddress,
       scheduledDate: new Date(meta.scheduledDate),
+      adminNotes: isRush ? `Rush order — requires approval. ${formatCents(RUSH_FEE_CENTS)} rush fee applies if approved.` : undefined,
       subtotalCents: subtotal,
       deliveryFeeCents,
       totalCents,
