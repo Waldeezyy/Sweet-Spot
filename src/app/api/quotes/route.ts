@@ -44,8 +44,13 @@ export async function POST(req: Request) {
 
   await sendQuoteRequestToAdmin({
     customerName: data.customerName,
+    customerEmail: data.customerEmail,
+    customerPhone: data.customerPhone,
     occasion: data.occasion,
     scheduledDate: format(new Date(data.scheduledDate), "MMM d, yyyy"),
+    description: data.description,
+    servings: data.servings,
+    budgetRange: data.budgetRange,
   });
 
   return NextResponse.json(quote);

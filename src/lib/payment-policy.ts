@@ -12,12 +12,11 @@ export type PaymentPolicy = {
   reason: string;
 };
 
-export function getPaymentPolicy(
-  items: CartItem[],
+export function getPaymentPolicyForTotal(
   totalCents: number,
+  semiCustom: boolean,
   settings: { depositPercent: number; fullPaymentThresholdCents: number }
 ): PaymentPolicy {
-  const semiCustom = hasSemiCustom(items);
   const depositCents = calculateDeposit(totalCents, settings.depositPercent);
   const balanceAfterDeposit = totalCents - depositCents;
 
@@ -43,6 +42,14 @@ export function getPaymentPolicy(
     balanceAfterDeposit,
     reason,
   };
+}
+
+export function getPaymentPolicy(
+  items: CartItem[],
+  totalCents: number,
+  settings: { depositPercent: number; fullPaymentThresholdCents: number }
+): PaymentPolicy {
+  return getPaymentPolicyForTotal(totalCents, hasSemiCustom(items), settings);
 }
 
 export function resolveCheckoutPayment(

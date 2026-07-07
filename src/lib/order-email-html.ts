@@ -163,6 +163,93 @@ export function buildStatusBodyHtml(params: {
   return body;
 }
 
+export function buildMessageCalloutHtml(message: string, title = "A note from Brandy"): string {
+  return `
+    <div style="margin: 20px 0; padding: 16px; background: #f9f5f0; border-left: 4px solid #c97b84; border-radius: 8px;">
+      <p style="margin: 0 0 8px; font-size: 14px; font-weight: 600; color: #7d8b6f;">${title}</p>
+      <p style="margin: 0; line-height: 1.6; color: #3d3630;">${message}</p>
+    </div>`;
+}
+
+export function buildPayButtonHtml(paymentUrl: string, label: string): string {
+  return `
+    <p style="margin: 28px 0 8px;">
+      <a href="${paymentUrl}" style="display: inline-block; padding: 12px 20px; background: #7d8b6f; color: #fff; text-decoration: none; border-radius: 8px; font-weight: 600;">
+        ${label}
+      </a>
+    </p>`;
+}
+
+export function buildCustomerContactHtml(params: {
+  customerName: string;
+  customerEmail: string;
+  customerPhone?: string | null;
+}): string {
+  const lines = [
+    `<strong>${params.customerName}</strong>`,
+    `<a href="mailto:${params.customerEmail}" style="color: #c97b84;">${params.customerEmail}</a>`,
+  ];
+  if (params.customerPhone) {
+    lines.push(params.customerPhone);
+  }
+  return `
+    <h2 style="font-size: 16px; margin: 24px 0 8px;">Customer</h2>
+    <p style="margin: 0; color: #5c5348; line-height: 1.6;">${lines.join("<br/>")}</p>`;
+}
+
+export function buildAdminManageButtonHtml(adminUrl: string): string {
+  return `
+    <p style="margin: 24px 0 8px;">
+      <a href="${adminUrl}" style="display: inline-block; padding: 12px 20px; background: #7d8b6f; color: #fff; text-decoration: none; border-radius: 8px; font-weight: 600;">
+        Manage in admin
+      </a>
+    </p>`;
+}
+
+export function buildAdminOrderNotificationHtml(params: {
+  headline: string;
+  intro: string;
+  orderNumber: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone?: string | null;
+  totalCents: number;
+  finalTotalCents?: number | null;
+  scheduledDate?: string;
+  fulfillmentType?: FulfillmentType;
+  deliveryAddress?: string | null;
+  items?: OrderEmailItem[];
+  adminUrl: string;
+  extraNotes?: string;
+}): string {
+  const total = params.finalTotalCents ?? params.totalCents;
+  return `
+    <div style="font-family: Georgia, 'Times New Roman', serif; color: #3d3630; max-width: 560px;">
+      <h1 style="font-size: 24px; margin: 0 0 8px; color: #7d8b6f;">${params.headline}</h1>
+      <p style="margin: 0 0 4px; font-size: 14px; color: #5c5348;">Order <strong>${params.orderNumber}</strong></p>
+      <p style="margin: 0 0 16px; line-height: 1.6;">${params.intro}</p>
+      ${params.extraNotes ? `<p style="margin: 0 0 16px; line-height: 1.6; color: #5c5348;">${params.extraNotes}</p>` : ""}
+      ${buildCustomerContactHtml({
+        customerName: params.customerName,
+        customerEmail: params.customerEmail,
+        customerPhone: params.customerPhone,
+      })}
+      ${
+        params.scheduledDate && params.fulfillmentType
+          ? buildOrderDetailsHtml({
+              scheduledDate: params.scheduledDate,
+              fulfillmentType: params.fulfillmentType,
+              deliveryAddress: params.deliveryAddress,
+            })
+          : ""
+      }
+      ${params.items?.length ? buildOrderItemsHtml(params.items) : ""}
+      <h2 style="font-size: 16px; margin: 24px 0 8px;">Order value</h2>
+      <p style="margin: 0; color: #5c5348; line-height: 1.6;">Total: <strong>${formatCents(total)}</strong></p>
+      ${buildAdminManageButtonHtml(params.adminUrl)}
+    </div>`;
+}
+
 export function buildOrderConfirmationBodyHtml(params: {
   pendingReview?: boolean;
   paidInFull: boolean;

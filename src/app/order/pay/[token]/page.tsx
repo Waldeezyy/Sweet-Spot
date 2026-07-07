@@ -4,10 +4,14 @@ import { format } from "date-fns";
 import { prisma } from "@/lib/db";
 import { OrderPayForm } from "@/components/order/OrderPayForm";
 import { stripe } from "@/lib/stripe";
+import { getPaymentPolicyForTotal } from "@/lib/payment-policy";
 
 export default async function OrderPayPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  const order = await prisma.order.findUnique({ where: { paymentToken: token } });
+  const order = await prisma.order.findUnique({
+    where: { paymentToken: token },
+    include: { items: true },
+  });
   if (!order || !order.finalTotalCents) notFound();
 
   if (order.depositPaid || order.status === "CONFIRMED" || order.status === "IN_PROGRESS" || order.status === "READY" || order.status === "COMPLETED") {
@@ -33,6 +37,21 @@ export default async function OrderPayPage({ params }: { params: Promise<{ token
   }
 
   const settings = await prisma.shopSettings.findFirst();
+  const productIds = order.items.map((item) => item.productId).filter((id): id is string => Boolean(id));
+  const products =
+    productIds.length > 0
+      ? await prisma.product.findMany({
+          where: { id: { in: productIds } },
+          select: { id: true, orderType: true },
+        })
+      : [];
+  const semiCustom = products.some((p) => p.orderType === "SEMI_CUSTOM");
+
+  const rushFeeCents = order.finalTotalCents - order.totalCents;
+  const policy = getPaymentPolicyForTotal(order.finalTotalCents, semiCustom, {
+    depositPercent: settings?.depositPercent ?? 25,
+    fullPaymentThresholdCents: settings?.fullPaymentThresholdCents ?? 7500,
+  });
 
   return (
     <div className="mx-auto max-w-md px-4 py-16">
@@ -45,8 +64,9 @@ export default async function OrderPayPage({ params }: { params: Promise<{ token
         customerName={order.customerName}
         orderNumber={order.orderNumber}
         baseTotalCents={order.totalCents}
+        rushFeeCents={rushFeeCents}
         finalTotalCents={order.finalTotalCents}
-        depositPercent={settings?.depositPercent ?? 25}
+        policy={policy}
         stripeEnabled={Boolean(stripe)}
       />
       <Link href={`/order/status/${order.trackingToken}`} className="mt-4 block text-center text-sm text-[var(--rose)] hover:underline">

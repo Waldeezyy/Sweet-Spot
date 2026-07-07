@@ -103,8 +103,13 @@ export async function POST(req: Request) {
     await sendRushRequestToAdmin({
       orderNumber: order.orderNumber,
       customerName: order.customerName,
+      customerEmail: order.customerEmail,
+      customerPhone: order.customerPhone,
       scheduledDate: scheduledLabel,
       totalCents: order.totalCents,
+      fulfillmentType: order.fulfillmentType,
+      deliveryAddress: order.deliveryAddress,
+      items: order.items,
     });
 
     return NextResponse.json({ url: `/order/success?order=${orderNumber}&submitted=1` });
@@ -177,7 +182,13 @@ export async function POST(req: Request) {
     await sendAdminNewOrder({
       orderNumber: paid.orderNumber,
       customerName: paid.customerName,
+      customerEmail: paid.customerEmail,
+      customerPhone: paid.customerPhone,
       totalCents: paid.totalCents,
+      scheduledDate: format(paid.scheduledDate, "EEEE, MMMM d, yyyy"),
+      fulfillmentType: paid.fulfillmentType,
+      deliveryAddress: paid.deliveryAddress,
+      items: paid.items,
       pendingReview: paid.status === "PENDING_REVIEW",
     });
     return NextResponse.json({ url: `/order/success?order=${orderNumber}&demo=1` });

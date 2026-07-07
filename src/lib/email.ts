@@ -4,10 +4,15 @@ import { formatCents } from "@/lib/utils";
 import { getSiteUrl } from "@/lib/site-url";
 import { STATUS_CUSTOMER_MESSAGE } from "@/lib/order-tracking";
 import {
+  buildAdminManageButtonHtml,
   buildBalanceDueInstructionsHtml,
+  buildAdminOrderNotificationHtml,
+  buildCustomerContactHtml,
+  buildMessageCalloutHtml,
   buildOrderConfirmationBodyHtml,
   buildOrderDetailsHtml,
   buildOrderItemsHtml,
+  buildPayButtonHtml,
   buildPaymentSummaryHtml,
   buildStatusBodyHtml,
   buildTrackButtonHtml,
@@ -127,17 +132,52 @@ export async function sendOrderConfirmationFromOrder(
 export async function sendAdminNewOrder(params: {
   orderNumber: string;
   customerName: string;
+  customerEmail: string;
+  customerPhone?: string | null;
   totalCents: number;
+  finalTotalCents?: number | null;
+  scheduledDate?: string;
+  fulfillmentType?: FulfillmentType;
+  deliveryAddress?: string | null;
+  items?: OrderEmailItem[];
   pendingReview?: boolean;
+  paymentReceived?: boolean;
 }) {
-  await sendEmail(
-    adminEmail,
-    `New order — ${params.orderNumber}`,
-    `<h1>New order received</h1>
-    <p><strong>${params.orderNumber}</strong> from ${params.customerName}</p>
-    <p>Total: ${formatCents(params.totalCents)}</p>
-    ${params.pendingReview ? "<p><strong>Needs price review</strong> (semi-custom item)</p>" : ""}`
-  );
+  const siteUrl = await getSiteUrl();
+  const adminUrl = `${siteUrl}/admin/orders`;
+  const intro = params.paymentReceived
+    ? `Payment received for <strong>${params.orderNumber}</strong>.`
+    : `New order <strong>${params.orderNumber}</strong> has been received.`;
+
+  const extraNotes = [
+    params.pendingReview ? "<strong>Needs price review</strong> (semi-custom or rush item)." : "",
+    params.paymentReceived ? "Customer payment was completed online." : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const html = buildAdminOrderNotificationHtml({
+    headline: params.paymentReceived ? "Order payment received" : "New order received",
+    intro,
+    orderNumber: params.orderNumber,
+    customerName: params.customerName,
+    customerEmail: params.customerEmail,
+    customerPhone: params.customerPhone,
+    totalCents: params.totalCents,
+    finalTotalCents: params.finalTotalCents,
+    scheduledDate: params.scheduledDate,
+    fulfillmentType: params.fulfillmentType,
+    deliveryAddress: params.deliveryAddress,
+    items: params.items,
+    adminUrl,
+    extraNotes: extraNotes || undefined,
+  });
+
+  const subject = params.paymentReceived
+    ? `Payment received — ${params.orderNumber}`
+    : `New order — ${params.orderNumber}`;
+
+  await sendEmail(adminEmail, subject, html);
 }
 
 export async function sendOrderStatusUpdate(params: {
@@ -251,31 +291,72 @@ export async function sendQuoteDeclined(params: {
 
 export async function sendQuoteRequestToAdmin(params: {
   customerName: string;
+  customerEmail: string;
+  customerPhone?: string | null;
   occasion: string;
   scheduledDate: string;
+  description?: string;
+  servings?: number | null;
+  budgetRange?: string | null;
 }) {
-  await sendEmail(
-    adminEmail,
-    `New custom order request from ${params.customerName}`,
-    `<p><strong>${params.customerName}</strong> requested a custom order.</p>
-    <p>Occasion: ${params.occasion}<br/>Date: ${params.scheduledDate}</p>`
-  );
+  const siteUrl = await getSiteUrl();
+  const adminUrl = `${siteUrl}/admin/custom-requests`;
+  const details = [
+    `Occasion: <strong>${params.occasion}</strong>`,
+    `Date: <strong>${params.scheduledDate}</strong>`,
+  ];
+  if (params.servings) details.push(`Servings: ${params.servings}`);
+  if (params.budgetRange) details.push(`Budget: ${params.budgetRange}`);
+
+  const html = `
+    <div style="font-family: Georgia, 'Times New Roman', serif; color: #3d3630; max-width: 560px;">
+      <h1 style="font-size: 24px; margin: 0 0 8px; color: #7d8b6f;">New custom order request</h1>
+      <p style="margin: 0 0 16px; line-height: 1.6;"><strong>${params.customerName}</strong> requested a custom order quote.</p>
+      ${buildCustomerContactHtml({
+        customerName: params.customerName,
+        customerEmail: params.customerEmail,
+        customerPhone: params.customerPhone,
+      })}
+      <h2 style="font-size: 16px; margin: 24px 0 8px;">Request details</h2>
+      <p style="margin: 0; color: #5c5348; line-height: 1.6;">${details.join("<br/>")}</p>
+      ${params.description ? `<p style="margin: 16px 0 0; color: #5c5348; line-height: 1.6;">${params.description}</p>` : ""}
+      ${buildAdminManageButtonHtml(adminUrl)}
+    </div>`;
+
+  await sendEmail(adminEmail, `New custom order request from ${params.customerName}`, html);
 }
 
 export async function sendRushRequestToAdmin(params: {
   orderNumber: string;
   customerName: string;
+  customerEmail: string;
+  customerPhone?: string | null;
   scheduledDate: string;
   totalCents: number;
+  fulfillmentType: FulfillmentType;
+  deliveryAddress?: string | null;
+  items: OrderEmailItem[];
 }) {
-  await sendEmail(
-    adminEmail,
-    `Rush order request — ${params.orderNumber}`,
-    `<h1>New rush order request</h1>
-    <p><strong>${params.orderNumber}</strong> from ${params.customerName}</p>
-    <p>Requested date: ${params.scheduledDate}<br/>Order total: ${formatCents(params.totalCents)} (rush fee not yet included)</p>
-    <p>Review and approve or decline in your admin orders inbox.</p>`
-  );
+  const siteUrl = await getSiteUrl();
+  const adminUrl = `${siteUrl}/admin/orders`;
+
+  const html = buildAdminOrderNotificationHtml({
+    headline: "New rush order request",
+    intro: `<strong>${params.customerName}</strong> submitted a rush order request that needs your approval.`,
+    orderNumber: params.orderNumber,
+    customerName: params.customerName,
+    customerEmail: params.customerEmail,
+    customerPhone: params.customerPhone,
+    totalCents: params.totalCents,
+    scheduledDate: params.scheduledDate,
+    fulfillmentType: params.fulfillmentType,
+    deliveryAddress: params.deliveryAddress,
+    items: params.items,
+    adminUrl,
+    extraNotes: `Order subtotal: <strong>${formatCents(params.totalCents)}</strong> (rush fee not yet included). Review and approve or decline in admin.`,
+  });
+
+  await sendEmail(adminEmail, `Rush order request — ${params.orderNumber}`, html);
 }
 
 export async function sendRushRequestReceived(params: {
@@ -306,19 +387,30 @@ export async function sendRushApproved(params: {
   orderNumber: string;
   finalTotalCents: number;
   rushFeeCents: number;
+  baseTotalCents: number;
   paymentUrl: string;
   message?: string;
 }) {
-  await sendEmail(
-    params.to,
-    `Rush order approved — ${params.orderNumber}`,
-    `<h1>Hi ${params.customerName},</h1>
-    <p>Great news — your rush order has been approved!</p>
-    <p><strong>Total due: ${formatCents(params.finalTotalCents)}</strong> (includes ${formatCents(params.rushFeeCents)} rush fee)</p>
-    ${params.message ? `<p>${params.message}</p>` : ""}
-    <p><a href="${params.paymentUrl}">Pay online & confirm your order</a></p>
-    <p class="text-sm">Prefer Venmo, Cash App, or cash? Reply to Brandy directly — online payment is optional.</p>`
-  );
+  const html = `
+    <div style="font-family: Georgia, 'Times New Roman', serif; color: #3d3630; max-width: 560px;">
+      <h1 style="font-size: 24px; margin: 0 0 8px; color: #7d8b6f;">Rush order approved!</h1>
+      <p style="margin: 0 0 4px; font-size: 14px; color: #5c5348;">Order <strong>${params.orderNumber}</strong></p>
+      <p style="margin: 0 0 16px; line-height: 1.6;">Hi ${params.customerName},</p>
+      <p style="margin: 0 0 16px; line-height: 1.6;">Great news — your rush order has been approved!</p>
+      ${params.message ? buildMessageCalloutHtml(params.message) : ""}
+      <h2 style="font-size: 16px; margin: 24px 0 8px;">Payment</h2>
+      <p style="margin: 0; color: #5c5348; line-height: 1.6;">
+        Order subtotal: ${formatCents(params.baseTotalCents)}<br/>
+        Rush fee: ${formatCents(params.rushFeeCents)}<br/>
+        <strong>Total due: ${formatCents(params.finalTotalCents)}</strong>
+      </p>
+      ${buildPayButtonHtml(params.paymentUrl, "Pay online & confirm your order")}
+      <p style="margin: 16px 0 0; font-size: 14px; color: #5c5348;">
+        Prefer Venmo, Cash App, or cash? Reply to Brandy directly — online payment is optional.
+      </p>
+    </div>`;
+
+  await sendEmail(params.to, `Rush order approved — ${params.orderNumber}`, html);
 }
 
 export async function sendRushDeclined(params: {

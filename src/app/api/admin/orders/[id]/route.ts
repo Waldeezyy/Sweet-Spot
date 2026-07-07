@@ -89,6 +89,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       orderNumber: order.orderNumber,
       finalTotalCents,
       rushFeeCents: RUSH_FEE_CENTS,
+      baseTotalCents: existing.totalCents,
       paymentUrl,
       message: body.approvalMessage,
     });

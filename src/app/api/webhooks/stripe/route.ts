@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
+import { format } from "date-fns";
 import { prisma } from "@/lib/db";
 import { stripe } from "@/lib/stripe";
 import { sendOrderConfirmationFromOrder, sendAdminNewOrder } from "@/lib/email";
@@ -46,7 +47,15 @@ export async function POST(req: Request) {
         await sendAdminNewOrder({
           orderNumber: order.orderNumber,
           customerName: order.customerName,
+          customerEmail: order.customerEmail,
+          customerPhone: order.customerPhone,
           totalCents: order.totalCents,
+          finalTotalCents: order.finalTotalCents,
+          scheduledDate: format(order.scheduledDate, "EEEE, MMMM d, yyyy"),
+          fulfillmentType: order.fulfillmentType,
+          deliveryAddress: order.deliveryAddress,
+          items: order.items,
+          paymentReceived: true,
         });
       }
     } else if (orderId) {
@@ -95,8 +104,16 @@ export async function POST(req: Request) {
         await sendAdminNewOrder({
           orderNumber: order.orderNumber,
           customerName: order.customerName,
+          customerEmail: order.customerEmail,
+          customerPhone: order.customerPhone,
           totalCents: order.totalCents,
+          finalTotalCents: order.finalTotalCents,
+          scheduledDate: format(order.scheduledDate, "EEEE, MMMM d, yyyy"),
+          fulfillmentType: order.fulfillmentType,
+          deliveryAddress: order.deliveryAddress,
+          items: order.items,
           pendingReview: order.status === "PENDING_REVIEW",
+          paymentReceived: true,
         });
       }
     } else {
