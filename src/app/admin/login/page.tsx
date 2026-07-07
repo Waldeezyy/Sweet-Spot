@@ -1,48 +1,54 @@
 "use client";
 
 import { signIn } from "next-auth/react";
-import { useSearchParams } from "next/navigation";
-import { Suspense } from "react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
-function LoginForm() {
-  const params = useSearchParams();
-  const verify = params.get("verify");
+export default function AdminLoginPage() {
+  const router = useRouter();
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+
+    const form = new FormData(e.currentTarget);
+    const result = await signIn("credentials", {
+      email: form.get("email"),
+      password: form.get("password"),
+      redirect: false,
+    });
+
+    setLoading(false);
+
+    if (result?.ok) {
+      router.push("/admin");
+      router.refresh();
+    } else {
+      setError("Invalid email or password.");
+    }
+  }
 
   return (
     <div className="mx-auto flex min-h-[60vh] max-w-md flex-col justify-center px-4">
       <h1 className="font-[family-name:var(--font-display)] text-3xl font-bold">Admin Login</h1>
-      {verify ? (
-        <p className="mt-4 text-[var(--warm-gray)]">Check your email for a sign-in link.</p>
-      ) : (
-        <>
-          <p className="mt-2 text-[var(--warm-gray)]">Enter the admin email to receive a magic link.</p>
-          <p className="mt-1 text-xs text-[var(--warm-gray)]">
-            Only the email set in ADMIN_EMAIL can sign in. Requires RESEND_API_KEY on the server.
-          </p>
-          <form
-            className="card mt-6 space-y-4"
-            onSubmit={(e) => {
-              e.preventDefault();
-              const email = new FormData(e.currentTarget).get("email") as string;
-              signIn("resend", { email, callbackUrl: "/admin" });
-            }}
-          >
-            <div>
-              <label className="label">Email</label>
-              <input name="email" type="email" required className="input" defaultValue="bssweetstop25@gmail.com" />
-            </div>
-            <button type="submit" className="btn-primary w-full">Send Magic Link</button>
-          </form>
-        </>
-      )}
+      <p className="mt-2 text-[var(--warm-gray)]">Sign in to manage your bakery.</p>
+      <form className="card mt-6 space-y-4" onSubmit={handleSubmit}>
+        <div>
+          <label className="label" htmlFor="email">Email</label>
+          <input id="email" name="email" type="email" required className="input" defaultValue="bssweetstop25@gmail.com" />
+        </div>
+        <div>
+          <label className="label" htmlFor="password">Password</label>
+          <input id="password" name="password" type="password" required className="input" autoComplete="current-password" />
+        </div>
+        {error && <p className="text-sm text-red-600">{error}</p>}
+        <button type="submit" disabled={loading} className="btn-primary w-full">
+          {loading ? "Signing in..." : "Sign In"}
+        </button>
+      </form>
     </div>
-  );
-}
-
-export default function AdminLoginPage() {
-  return (
-    <Suspense>
-      <LoginForm />
-    </Suspense>
   );
 }

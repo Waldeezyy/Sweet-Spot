@@ -6,7 +6,7 @@ Custom bakery website for B's Sweet Spot — made-to-order cakes and treats in D
 
 - **Next.js 15** (App Router) + TypeScript + Tailwind CSS
 - **PostgreSQL** via Prisma
-- **NextAuth** (email magic link for admin)
+- **NextAuth** (email + password for admin)
 - **Stripe** (order deposits)
 - **Resend** (transactional email)
 - **Railway** (hosting)
@@ -55,8 +55,9 @@ Custom bakery website for B's Sweet Spot — made-to-order cakes and treats in D
 | `NEXT_PUBLIC_SITE_URL` | Your Railway URL or custom domain |
 | `AUTH_SECRET` | Random 32+ char string |
 | `AUTH_URL` | Same as `NEXT_PUBLIC_SITE_URL` |
-| `ADMIN_EMAIL` | Brandy's email for admin login |
-| `RESEND_API_KEY` | For emails |
+| `ADMIN_EMAIL` | Admin login email |
+| `ADMIN_PASSWORD` | Admin login password (use a strong, unique password) |
+| `RESEND_API_KEY` | For order emails (optional at first) |
 | `EMAIL_FROM` | Verified sender in Resend |
 | `STRIPE_SECRET_KEY` | Stripe secret key |
 | `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret |
@@ -78,7 +79,7 @@ npm run db:seed
 
 ## Admin Dashboard
 
-Visit `/admin/login` and sign in with the email set in `ADMIN_EMAIL`. Brandy can:
+Visit `/admin/login` and sign in with `ADMIN_EMAIL` + `ADMIN_PASSWORD`. Brandy can:
 
 - **My Menu** — add/edit/hide items and prices
 - **My Photos** — upload gallery images
