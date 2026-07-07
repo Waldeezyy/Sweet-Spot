@@ -66,11 +66,23 @@ export async function POST(req: Request) {
         }
       } else {
         const existing = await prisma.order.findUnique({ where: { id: orderId } });
+        if (!existing) return NextResponse.json({ received: true });
+
+        const paidInFull = session.metadata?.paidInFull === "true";
+        const amountPaid = session.amount_total ?? 0;
+        const orderTotal = existing.finalTotalCents ?? existing.totalCents;
+        const depositCents = paidInFull ? orderTotal : amountPaid;
+        const balanceDueCents = paidInFull ? 0 : Math.max(0, orderTotal - amountPaid);
+
         const order = await prisma.order.update({
           where: { id: orderId },
           data: {
             depositPaid: true,
-            status: existing?.status === "PENDING_REVIEW" ? "PENDING_REVIEW" : "CONFIRMED",
+            paidInFull,
+            depositCents,
+            balanceDueCents,
+            finalTotalCents: existing.finalTotalCents ?? orderTotal,
+            status: existing.status === "PENDING_REVIEW" ? "PENDING_REVIEW" : "CONFIRMED",
             stripePaymentIntent: session.payment_intent as string,
           },
           include: { items: true },

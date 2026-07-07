@@ -231,6 +231,8 @@ model Order {
   depositPaid         Boolean         @default(false)
   stripeSessionId     String?
   stripePaymentIntent String?
+  isRush              Boolean         @default(false)
+  paymentToken        String?         @unique
   adminNotes          String?         @db.Text
   estimatedReadyAt    DateTime?
   items               OrderItem[]

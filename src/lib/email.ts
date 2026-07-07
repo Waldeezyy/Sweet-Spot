@@ -262,6 +262,82 @@ export async function sendQuoteRequestToAdmin(params: {
   );
 }
 
+export async function sendRushRequestToAdmin(params: {
+  orderNumber: string;
+  customerName: string;
+  scheduledDate: string;
+  totalCents: number;
+}) {
+  await sendEmail(
+    adminEmail,
+    `Rush order request — ${params.orderNumber}`,
+    `<h1>New rush order request</h1>
+    <p><strong>${params.orderNumber}</strong> from ${params.customerName}</p>
+    <p>Requested date: ${params.scheduledDate}<br/>Order total: ${formatCents(params.totalCents)} (rush fee not yet included)</p>
+    <p>Review and approve or decline in your admin orders inbox.</p>`
+  );
+}
+
+export async function sendRushRequestReceived(params: {
+  to: string;
+  customerName: string;
+  orderNumber: string;
+  scheduledDate: string;
+  trackingToken: string;
+}) {
+  const siteUrl = await getSiteUrl();
+  const trackLink = `${siteUrl}/order/status/${params.trackingToken}`;
+
+  await sendEmail(
+    params.to,
+    `Rush order request received — ${params.orderNumber}`,
+    `<h1>Hi ${params.customerName},</h1>
+    <p>We received your rush order request for <strong>${params.scheduledDate}</strong>.</p>
+    <p>Brandy will review whether we can accommodate your date. You will not be charged unless your request is approved.</p>
+    <p>If approved, we will email you a link to pay online (including the rush fee).</p>
+    <p>Order <strong>${params.orderNumber}</strong></p>
+    <p><a href="${trackLink}">Track your request</a></p>`
+  );
+}
+
+export async function sendRushApproved(params: {
+  to: string;
+  customerName: string;
+  orderNumber: string;
+  finalTotalCents: number;
+  rushFeeCents: number;
+  paymentUrl: string;
+  message?: string;
+}) {
+  await sendEmail(
+    params.to,
+    `Rush order approved — ${params.orderNumber}`,
+    `<h1>Hi ${params.customerName},</h1>
+    <p>Great news — your rush order has been approved!</p>
+    <p><strong>Total due: ${formatCents(params.finalTotalCents)}</strong> (includes ${formatCents(params.rushFeeCents)} rush fee)</p>
+    ${params.message ? `<p>${params.message}</p>` : ""}
+    <p><a href="${params.paymentUrl}">Pay online & confirm your order</a></p>
+    <p class="text-sm">Prefer Venmo, Cash App, or cash? Reply to Brandy directly — online payment is optional.</p>`
+  );
+}
+
+export async function sendRushDeclined(params: {
+  to: string;
+  customerName: string;
+  orderNumber: string;
+  message?: string;
+}) {
+  const siteUrl = await getSiteUrl();
+  await sendEmail(
+    params.to,
+    `Update on your rush order — ${params.orderNumber}`,
+    `<h1>Hi ${params.customerName},</h1>
+    <p>Thank you for thinking of B's Sweet Spot. Unfortunately we're not able to accommodate this rush order for your requested date.</p>
+    ${params.message ? `<p>${params.message}</p>` : ""}
+    <p>Feel free to reach out at bssweetstop25@gmail.com or browse our <a href="${siteUrl}/menu">menu</a> for other options.</p>`
+  );
+}
+
 export async function sendContactForm(params: {
   name: string;
   email: string;

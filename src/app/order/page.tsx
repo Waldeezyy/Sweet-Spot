@@ -9,7 +9,7 @@ import { getPaymentPolicy, resolveCheckoutPayment, type PaymentChoice } from "@/
 import { formatCartItemDetails } from "@/lib/order-item-display";
 import { OrderSteps } from "@/components/order/OrderSteps";
 import { RushOrderNotice } from "@/components/order/RushOrderNotice";
-import { isPastScheduledDate, isRushOrderDate, todayDateInputValue } from "@/lib/rush-order";
+import { isPastScheduledDate, isRushOrderDate, RUSH_FEE_CENTS, todayDateInputValue } from "@/lib/rush-order";
 
 type Settings = {
   orderMinimumCents: number;
@@ -58,6 +58,7 @@ export default function OrderPage() {
   const isRush =
     Boolean(meta.scheduledDate && settings) &&
     isRushOrderDate(meta.scheduledDate!, settings!.leadTimeDays);
+  const rushRequestOnly = isRush && !semiCustom;
 
   function validateStep(): boolean {
     const e: Record<string, string> = {};
@@ -223,7 +224,7 @@ export default function OrderPage() {
             {deliveryFee > 0 && <p>Delivery: {formatCents(deliveryFee)}</p>}
             {isRush && (
               <p className="text-amber-900">
-                Rush fee (if approved): not included in total — Brandy will confirm
+                Rush fee ({formatCents(RUSH_FEE_CENTS)}): added to total only if approved — you pay after approval
               </p>
             )}
             <p className="font-semibold">Order total: {formatCents(totalCents)}</p>
@@ -233,7 +234,13 @@ export default function OrderPage() {
               </div>
             )}
 
-            {policy && (
+            {rushRequestOnly && (
+              <p className="mt-3 text-[var(--warm-gray)]">
+                No payment now — submit your request and Brandy will email you if your rush date is approved.
+              </p>
+            )}
+
+            {policy && !rushRequestOnly && (
               <>
                 <p className="mt-3 text-[var(--warm-gray)]">{policy.reason}</p>
 
@@ -300,12 +307,19 @@ export default function OrderPage() {
             Next
           </button>
         ) : (
-          <button type="button" onClick={handleCheckout} disabled={loading || !payment} className="btn-primary">
+          <button
+            type="button"
+            onClick={handleCheckout}
+            disabled={loading || (!rushRequestOnly && !payment)}
+            className="btn-primary"
+          >
             {loading
               ? "Processing..."
-              : payment?.paidInFull
-                ? `Pay ${formatCents(payment.chargeCents)} in Full`
-                : `Pay ${formatCents(payment?.chargeCents ?? 0)} Deposit`}
+              : rushRequestOnly
+                ? "Submit rush request"
+                : payment?.paidInFull
+                  ? `Pay ${formatCents(payment.chargeCents)} in Full`
+                  : `Pay ${formatCents(payment?.chargeCents ?? 0)} Deposit`}
           </button>
         )}
       </div>

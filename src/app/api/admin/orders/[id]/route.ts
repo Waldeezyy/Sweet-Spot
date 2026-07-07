@@ -1,9 +1,17 @@
 import { NextResponse } from "next/server";
+import { randomUUID } from "crypto";
 import { z } from "zod";
 import { format } from "date-fns";
 import { prisma } from "@/lib/db";
 import { requireAdminApi } from "@/lib/admin-api";
-import { sendOrderStatusUpdate } from "@/lib/email";
+import {
+  sendOrderStatusUpdate,
+  sendOrderConfirmationFromOrder,
+  sendRushApproved,
+  sendRushDeclined,
+} from "@/lib/email";
+import { getSiteUrl } from "@/lib/site-url";
+import { RUSH_FEE_CENTS } from "@/lib/rush-order";
 
 const NOTIFY_STATUSES = ["CONFIRMED", "IN_PROGRESS", "READY", "COMPLETED", "CANCELLED"] as const;
 
@@ -12,12 +20,21 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if ("error" in authResult) return authResult.error;
 
   const { id } = await params;
-  const data = z.object({
-    status: z.enum(["PENDING_DEPOSIT", "PENDING_REVIEW", "CONFIRMED", "IN_PROGRESS", "READY", "COMPLETED", "CANCELLED"]).optional(),
-    finalTotalCents: z.number().int().optional(),
-    adminNotes: z.string().optional(),
-    estimatedReadyAt: z.string().datetime().optional(),
-  }).parse(await req.json());
+  const body = z
+    .object({
+      action: z.enum(["approve_rush", "decline_rush", "mark_paid_offline"]).optional(),
+      status: z
+        .enum(["PENDING_DEPOSIT", "PENDING_REVIEW", "CONFIRMED", "IN_PROGRESS", "READY", "COMPLETED", "CANCELLED"])
+        .optional(),
+      finalTotalCents: z.number().int().optional(),
+      adminNotes: z.string().optional(),
+      estimatedReadyAt: z.string().datetime().optional(),
+      declineMessage: z.string().optional(),
+      approvalMessage: z.string().optional(),
+      paidInFull: z.boolean().optional(),
+      offlineNote: z.string().optional(),
+    })
+    .parse(await req.json());
 
   const existing = await prisma.order.findUnique({
     where: { id },
@@ -25,30 +42,117 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+  if (body.action === "decline_rush") {
+    if (!existing.isRush || existing.status !== "PENDING_REVIEW") {
+      return NextResponse.json({ error: "Not a pending rush request" }, { status: 400 });
+    }
+    const order = await prisma.order.update({
+      where: { id },
+      data: {
+        status: "CANCELLED",
+        adminNotes: body.declineMessage ?? existing.adminNotes,
+      },
+      include: { items: true },
+    });
+    await sendRushDeclined({
+      to: order.customerEmail,
+      customerName: order.customerName,
+      orderNumber: order.orderNumber,
+      message: body.declineMessage,
+    });
+    return NextResponse.json(order);
+  }
+
+  if (body.action === "approve_rush") {
+    if (!existing.isRush || existing.status !== "PENDING_REVIEW" || existing.depositPaid) {
+      return NextResponse.json({ error: "Not a pending rush request" }, { status: 400 });
+    }
+    const finalTotalCents = existing.totalCents + RUSH_FEE_CENTS;
+    const token = randomUUID();
+    const order = await prisma.order.update({
+      where: { id },
+      data: {
+        status: "PENDING_DEPOSIT",
+        finalTotalCents,
+        paymentToken: token,
+        balanceDueCents: finalTotalCents,
+        adminNotes: body.approvalMessage ?? existing.adminNotes,
+      },
+      include: { items: true },
+    });
+
+    const siteUrl = await getSiteUrl();
+    const paymentUrl = `${siteUrl}/order/pay/${token}`;
+    await sendRushApproved({
+      to: order.customerEmail,
+      customerName: order.customerName,
+      orderNumber: order.orderNumber,
+      finalTotalCents,
+      rushFeeCents: RUSH_FEE_CENTS,
+      paymentUrl,
+      message: body.approvalMessage,
+    });
+
+    return NextResponse.json({ ...order, paymentUrl });
+  }
+
+  if (body.action === "mark_paid_offline") {
+    if (!existing.paymentToken || existing.depositPaid) {
+      return NextResponse.json({ error: "Order not awaiting payment" }, { status: 400 });
+    }
+    const finalTotal = existing.finalTotalCents ?? existing.totalCents;
+    const settings = await prisma.shopSettings.findFirst();
+    const depositPercent = settings?.depositPercent ?? 25;
+    const paidInFull = body.paidInFull ?? false;
+    const depositCents = paidInFull ? finalTotal : Math.round(finalTotal * (depositPercent / 100));
+    const balanceDueCents = finalTotal - depositCents;
+    const order = await prisma.order.update({
+      where: { id },
+      data: {
+        status: "CONFIRMED",
+        depositPaid: true,
+        paidInFull,
+        depositCents,
+        balanceDueCents,
+        finalTotalCents: finalTotal,
+        adminNotes: [
+          existing.adminNotes,
+          body.offlineNote ? `Paid offline: ${body.offlineNote}` : "Paid offline",
+        ]
+          .filter(Boolean)
+          .join("\n"),
+      },
+      include: { items: true },
+    });
+    await sendOrderConfirmationFromOrder(order);
+    return NextResponse.json(order);
+  }
+
   const order = await prisma.order.update({
     where: { id },
     data: {
-      status: data.status,
-      finalTotalCents: data.finalTotalCents,
-      adminNotes: data.adminNotes,
-      estimatedReadyAt: data.estimatedReadyAt ? new Date(data.estimatedReadyAt) : undefined,
-      balanceDueCents: data.finalTotalCents
-        ? Math.max(0, data.finalTotalCents - existing.depositCents)
+      status: body.status,
+      finalTotalCents: body.finalTotalCents,
+      adminNotes: body.adminNotes,
+      estimatedReadyAt: body.estimatedReadyAt ? new Date(body.estimatedReadyAt) : undefined,
+      balanceDueCents: body.finalTotalCents
+        ? Math.max(0, body.finalTotalCents - existing.depositCents)
         : undefined,
     },
     include: { items: true },
   });
 
-  const statusChanged = data.status && data.status !== existing.status;
-  const priceConfirmed = data.finalTotalCents != null && existing.status === "PENDING_REVIEW" && data.status === "CONFIRMED";
+  const statusChanged = body.status && body.status !== existing.status;
+  const priceConfirmed =
+    body.finalTotalCents != null && existing.status === "PENDING_REVIEW" && body.status === "CONFIRMED";
 
-  if (statusChanged && data.status && NOTIFY_STATUSES.includes(data.status as typeof NOTIFY_STATUSES[number])) {
+  if (statusChanged && body.status && NOTIFY_STATUSES.includes(body.status as (typeof NOTIFY_STATUSES)[number])) {
     const settings = await prisma.shopSettings.findFirst();
     await sendOrderStatusUpdate({
       to: order.customerEmail,
       customerName: order.customerName,
       orderNumber: order.orderNumber,
-      status: data.status,
+      status: body.status,
       scheduledDate: format(order.scheduledDate, "EEEE, MMMM d, yyyy"),
       fulfillmentType: order.fulfillmentType,
       trackingToken: order.trackingToken,

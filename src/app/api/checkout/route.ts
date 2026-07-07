@@ -1,13 +1,19 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { format } from "date-fns";
 import { prisma } from "@/lib/db";
 import { stripe } from "@/lib/stripe";
 import { getSiteUrl } from "@/lib/site-url";
-import { generateOrderNumber, formatCents } from "@/lib/utils";
+import { generateOrderNumber } from "@/lib/utils";
 import { hasSemiCustom, type CartItem } from "@/lib/cart";
 import { getPaymentPolicy, resolveCheckoutPayment } from "@/lib/payment-policy";
-import { sendOrderConfirmationFromOrder, sendAdminNewOrder } from "@/lib/email";
-import { isPastScheduledDate, isRushOrderDate, RUSH_FEE_CENTS } from "@/lib/rush-order";
+import {
+  sendOrderConfirmationFromOrder,
+  sendAdminNewOrder,
+  sendRushRequestToAdmin,
+  sendRushRequestReceived,
+} from "@/lib/email";
+import { isPastScheduledDate, isRushOrderDate } from "@/lib/rush-order";
 
 const schema = z.object({
   items: z.array(z.any()),
@@ -42,6 +48,67 @@ export async function POST(req: Request) {
   }
 
   const isRush = isRushOrderDate(meta.scheduledDate, settings.leadTimeDays);
+  const semiCustom = hasSemiCustom(items as CartItem[]);
+  const rushRequestOnly = isRush && !semiCustom;
+
+  const orderNumber = generateOrderNumber();
+
+  if (rushRequestOnly) {
+    const order = await prisma.order.create({
+      data: {
+        orderNumber,
+        status: "PENDING_REVIEW",
+        isRush: true,
+        customerName: meta.customerName,
+        customerEmail: meta.customerEmail,
+        customerPhone: meta.customerPhone,
+        fulfillmentType: meta.fulfillmentType,
+        deliveryAddress: meta.deliveryAddress,
+        scheduledDate: new Date(meta.scheduledDate),
+        subtotalCents: subtotal,
+        deliveryFeeCents,
+        totalCents,
+        depositCents: 0,
+        balanceDueCents: 0,
+        paidInFull: false,
+        depositPaid: false,
+        items: {
+          create: (items as CartItem[]).map((item) => ({
+            productId: item.productId,
+            productName: item.productName,
+            productSlug: item.productSlug,
+            unitPriceCents: item.unitPriceCents,
+            quantity: item.quantity,
+            flavor: item.flavor,
+            frosting: item.frosting,
+            toppings: item.toppings?.join(", "),
+            writing: item.writing,
+            designNotes: item.designNotes,
+            allergyNotes: item.allergyNotes,
+            inspirationPhotos: item.inspirationPhotos ?? [],
+          })),
+        },
+      },
+      include: { items: true },
+    });
+
+    const scheduledLabel = format(new Date(meta.scheduledDate), "MMM d, yyyy");
+    await sendRushRequestReceived({
+      to: order.customerEmail,
+      customerName: order.customerName,
+      orderNumber: order.orderNumber,
+      scheduledDate: scheduledLabel,
+      trackingToken: order.trackingToken,
+    });
+    await sendRushRequestToAdmin({
+      orderNumber: order.orderNumber,
+      customerName: order.customerName,
+      scheduledDate: scheduledLabel,
+      totalCents: order.totalCents,
+    });
+
+    return NextResponse.json({ url: `/order/success?order=${orderNumber}&submitted=1` });
+  }
 
   const policy = getPaymentPolicy(items as CartItem[], totalCents, {
     depositPercent: settings.depositPercent,
@@ -53,21 +120,20 @@ export async function POST(req: Request) {
     policy
   );
 
-  const orderNumber = generateOrderNumber();
-  const needsReview = hasSemiCustom(items as CartItem[]) || isRush;
+  const needsReview = semiCustom || isRush;
   const status = needsReview ? "PENDING_REVIEW" : payment.paidInFull ? "CONFIRMED" : "PENDING_DEPOSIT";
 
   const order = await prisma.order.create({
     data: {
       orderNumber,
       status,
+      isRush,
       customerName: meta.customerName,
       customerEmail: meta.customerEmail,
       customerPhone: meta.customerPhone,
       fulfillmentType: meta.fulfillmentType,
       deliveryAddress: meta.deliveryAddress,
       scheduledDate: new Date(meta.scheduledDate),
-      adminNotes: isRush ? `Rush order — requires approval. ${formatCents(RUSH_FEE_CENTS)} rush fee applies if approved.` : undefined,
       subtotalCents: subtotal,
       deliveryFeeCents,
       totalCents,

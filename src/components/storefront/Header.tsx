@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { auth } from "@/lib/auth";
 import { CartButton } from "@/components/storefront/CartButton";
 
 const links = [
@@ -11,8 +10,6 @@ const links = [
 ];
 
 export async function Header() {
-  const session = await auth();
-
   return (
     <header className="sticky top-0 z-50 border-b border-[var(--blush)] bg-[var(--cream)]/95 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
@@ -31,11 +28,6 @@ export async function Header() {
           <Link href="/order" className="btn-primary hidden text-sm sm:inline-flex">
             Order Now
           </Link>
-          {session?.user && (
-            <Link href="/admin" className="text-sm text-[var(--sage)] hover:underline">
-              Admin
-            </Link>
-          )}
         </div>
       </div>
       <nav className="flex gap-4 overflow-x-auto border-t border-[var(--blush)] px-4 py-2 md:hidden">

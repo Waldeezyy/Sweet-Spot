@@ -29,6 +29,9 @@ export default async function AdminOrdersPage() {
           depositCents: o.depositCents,
           balanceDueCents: o.balanceDueCents,
           paidInFull: o.paidInFull,
+          depositPaid: o.depositPaid,
+          isRush: o.isRush,
+          paymentToken: o.paymentToken,
           items: o.items.map((i) => ({
             productName: i.productName,
             productSlug: i.productSlug,

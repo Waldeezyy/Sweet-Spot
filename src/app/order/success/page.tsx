@@ -6,9 +6,9 @@ import { formatCents } from "@/lib/utils";
 export default async function OrderSuccessPage({
   searchParams,
 }: {
-  searchParams: Promise<{ order?: string; demo?: string }>;
+  searchParams: Promise<{ order?: string; demo?: string; submitted?: string }>;
 }) {
-  const { order: orderNumber, demo } = await searchParams;
+  const { order: orderNumber, demo, submitted } = await searchParams;
   const order = orderNumber
     ? await prisma.order.findUnique({ where: { orderNumber } })
     : null;
@@ -19,11 +19,13 @@ export default async function OrderSuccessPage({
       <h1 className="font-[family-name:var(--font-display)] text-4xl font-bold text-[var(--sage)]">Thank You!</h1>
       {orderNumber && <p className="mt-4 text-lg">Order <strong>{orderNumber}</strong> received.</p>}
       <p className="mt-4 text-[var(--warm-gray)]">
-        {demo
-          ? "Demo mode — Stripe is not configured yet, so no payment was charged. Your order was still saved."
-          : order?.paidInFull
-            ? "Your payment has been received in full. Check your email for confirmation."
-            : "Your deposit has been received. Check your email for confirmation."}
+        {submitted
+          ? "Your rush order request has been submitted. Brandy will review your date and email you if approved — you will not be charged unless your request is accepted."
+          : demo
+            ? "Demo mode — Stripe is not configured yet, so no payment was charged. Your order was still saved."
+            : order?.paidInFull
+              ? "Your payment has been received in full. Check your email for confirmation."
+              : "Your deposit has been received. Check your email for confirmation."}
       </p>
       {order && !order.paidInFull && order.balanceDueCents > 0 && (
         <p className="mt-2 text-sm text-[var(--warm-gray)]">
