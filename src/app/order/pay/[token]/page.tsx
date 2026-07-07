@@ -3,8 +3,10 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { prisma } from "@/lib/db";
 import { OrderPayForm } from "@/components/order/OrderPayForm";
-import { stripe } from "@/lib/stripe";
+import { isStripeConfigured } from "@/lib/stripe";
 import { getPaymentPolicyForTotal } from "@/lib/payment-policy";
+
+export const dynamic = "force-dynamic";
 
 export default async function OrderPayPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
@@ -67,7 +69,7 @@ export default async function OrderPayPage({ params }: { params: Promise<{ token
         rushFeeCents={rushFeeCents}
         finalTotalCents={order.finalTotalCents}
         policy={policy}
-        stripeEnabled={Boolean(stripe)}
+        stripeEnabled={isStripeConfigured()}
       />
       <Link href={`/order/status/${order.trackingToken}`} className="mt-4 block text-center text-sm text-[var(--rose)] hover:underline">
         Track your order
