@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
-import { stripe, getSiteUrl } from "@/lib/stripe";
+import { stripe } from "@/lib/stripe";
+import { getSiteUrl } from "@/lib/site-url";
 import { notFound } from "next/navigation";
 import { formatCents } from "@/lib/utils";
 
@@ -16,6 +17,7 @@ export default async function QuotePayPage({ params }: { params: Promise<{ token
     const q = await prisma.quoteRequest.findUnique({ where: { paymentToken: token } });
     if (!q || !q.quotedPriceCents || !stripe) return;
 
+    const siteUrl = await getSiteUrl();
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       customer_email: q.customerEmail,
@@ -28,8 +30,8 @@ export default async function QuotePayPage({ params }: { params: Promise<{ token
         quantity: 1,
       }],
       metadata: { quoteId: q.id },
-      success_url: `${getSiteUrl()}/quote/success?token=${token}`,
-      cancel_url: `${getSiteUrl()}/quote/pay/${token}`,
+      success_url: `${siteUrl}/quote/success?token=${token}`,
+      cancel_url: `${siteUrl}/quote/pay/${token}`,
     });
 
     if (session.url) {

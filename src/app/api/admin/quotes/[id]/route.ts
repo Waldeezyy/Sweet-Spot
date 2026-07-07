@@ -3,7 +3,7 @@ import { randomUUID } from "crypto";
 import { prisma } from "@/lib/db";
 import { requireAdminApi } from "@/lib/admin-api";
 import { sendQuoteToCustomer } from "@/lib/email";
-import { getSiteUrl } from "@/lib/stripe";
+import { getSiteUrl } from "@/lib/site-url";
 import { z } from "zod";
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -37,12 +37,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     },
   });
 
+  const siteUrl = await getSiteUrl();
   await sendQuoteToCustomer({
     to: quote.customerEmail,
     customerName: quote.customerName,
     quotedPriceCents: body.quotedPriceCents!,
     message: body.quoteMessage,
-    paymentUrl: `${getSiteUrl()}/quote/pay/${token}`,
+    paymentUrl: `${siteUrl}/quote/pay/${token}`,
   });
 
   return NextResponse.json(quote);

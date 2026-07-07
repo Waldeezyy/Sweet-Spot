@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
-import { stripe, getSiteUrl } from "@/lib/stripe";
+import { stripe } from "@/lib/stripe";
+import { getSiteUrl } from "@/lib/site-url";
 import { generateOrderNumber } from "@/lib/utils";
 import { hasSemiCustom } from "@/lib/cart";
 import type { CartItem } from "@/lib/cart";
@@ -77,9 +78,11 @@ export async function POST(req: Request) {
       where: { id: order.id },
       data: { depositPaid: true, status: needsReview ? "PENDING_REVIEW" : "CONFIRMED" },
     });
-    return NextResponse.json({ url: `${getSiteUrl()}/order/success?order=${orderNumber}&demo=1` });
+    // Relative URL keeps the user on the same host (Railway, local, etc.)
+    return NextResponse.json({ url: `/order/success?order=${orderNumber}&demo=1` });
   }
 
+  const siteUrl = await getSiteUrl();
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
     customer_email: meta.customerEmail,
@@ -97,8 +100,8 @@ export async function POST(req: Request) {
       },
     ],
     metadata: { orderId: order.id, orderNumber },
-    success_url: `${getSiteUrl()}/order/success?order=${orderNumber}`,
-    cancel_url: `${getSiteUrl()}/order?cancelled=1`,
+    success_url: `${siteUrl}/order/success?order=${orderNumber}`,
+    cancel_url: `${siteUrl}/order?cancelled=1`,
   });
 
   await prisma.order.update({
