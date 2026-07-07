@@ -1,27 +1,46 @@
 {
-  "name": "sweet-spot-app",
+  "name": "sweet-spot",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "postinstall": "prisma generate",
+    "db:push": "prisma db push",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:migrate": "prisma migrate deploy"
   },
   "dependencies": {
+    "@auth/prisma-adapter": "^2.11.2",
+    "@prisma/client": "^5.22.0",
+    "bcryptjs": "^3.0.3",
+    "date-fns": "^4.4.0",
+    "dotenv": "^17.4.2",
+    "lucide-react": "^1.23.0",
+    "next": "^15.5.7",
+    "next-auth": "^5.0.0-beta.31",
+    "prisma": "^5.22.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "next": "15.1.0"
+    "resend": "^6.17.1",
+    "stripe": "^22.3.0",
+    "uuid": "^14.0.1",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
-    "typescript": "^5",
+    "@eslint/eslintrc": "^3",
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "postcss": "^8",
-    "tailwindcss": "^3.4.1",
+    "@types/uuid": "^10.0.0",
     "eslint": "^9",
     "eslint-config-next": "15.1.0",
-    "@eslint/eslintrc": "^3"
+    "postcss": "^8",
+    "tailwindcss": "^3.4.1",
+    "tsx": "^4.23.0",
+    "typescript": "^5"
   }
 }
