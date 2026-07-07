@@ -141,6 +141,7 @@ model ShopSettings {
   location            String   @default("Dimondale, Michigan")
   orderMinimumCents   Int      @default(2500)
   depositPercent      Int      @default(25)
+  fullPaymentThresholdCents Int @default(7500)
   leadTimeDays        Int      @default(2)
   deliveryRadiusMiles Int      @default(12)
   deliveryFeeCents    Int      @default(0)
@@ -189,6 +190,7 @@ model Order {
   finalTotalCents     Int?
   depositCents        Int
   balanceDueCents     Int
+  paidInFull          Boolean         @default(false)
   depositPaid         Boolean         @default(false)
   stripeSessionId     String?
   stripePaymentIntent String?

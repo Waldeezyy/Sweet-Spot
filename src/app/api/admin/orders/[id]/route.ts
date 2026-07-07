@@ -15,17 +15,17 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     adminNotes: z.string().optional(),
   }).parse(await req.json());
 
-  const order = await prisma.order.update({
-    where: { id },
-    data: {
-      status: data.status,
-      finalTotalCents: data.finalTotalCents,
-      adminNotes: data.adminNotes,
-      balanceDueCents: data.finalTotalCents
-        ? data.finalTotalCents - (await prisma.order.findUnique({ where: { id } }))!.depositCents
-        : undefined,
-    },
-  });
+      const order = await prisma.order.update({
+        where: { id },
+        data: {
+          status: data.status,
+          finalTotalCents: data.finalTotalCents,
+          adminNotes: data.adminNotes,
+          balanceDueCents: data.finalTotalCents
+            ? Math.max(0, data.finalTotalCents - (await prisma.order.findUnique({ where: { id } }))!.depositCents)
+            : undefined,
+        },
+      });
 
   if (data.status === "READY") {
     await sendOrderStatusUpdate({

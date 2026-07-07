@@ -25,7 +25,17 @@ export default async function AdminOrdersPage() {
           scheduledDate: o.scheduledDate.toISOString(),
           totalCents: o.totalCents,
           finalTotalCents: o.finalTotalCents,
-          items: o.items.map((i) => ({ productName: i.productName, quantity: i.quantity, designNotes: i.designNotes })),
+          depositCents: o.depositCents,
+          balanceDueCents: o.balanceDueCents,
+          paidInFull: o.paidInFull,
+          items: o.items.map((i) => ({
+            productName: i.productName,
+            productSlug: i.productSlug,
+            quantity: i.quantity,
+            flavor: i.flavor,
+            frosting: i.frosting,
+            designNotes: i.designNotes,
+          })),
         }))}
       />
     </div>

@@ -4,8 +4,8 @@ import { prisma } from "@/lib/db";
 import { stripe } from "@/lib/stripe";
 import { getSiteUrl } from "@/lib/site-url";
 import { generateOrderNumber } from "@/lib/utils";
-import { hasSemiCustom } from "@/lib/cart";
-import type { CartItem } from "@/lib/cart";
+import { hasSemiCustom, type CartItem } from "@/lib/cart";
+import { getPaymentPolicy, resolveCheckoutPayment } from "@/lib/payment-policy";
 
 const schema = z.object({
   items: z.array(z.any()),
@@ -18,15 +18,15 @@ const schema = z.object({
     customerPhone: z.string().optional(),
   }),
   totalCents: z.number(),
-  depositCents: z.number(),
   deliveryFeeCents: z.number(),
+  paymentChoice: z.enum(["deposit", "full"]).optional(),
 });
 
 export async function POST(req: Request) {
   const parsed = schema.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: "Invalid order data" }, { status: 400 });
 
-  const { items, meta, totalCents, depositCents, deliveryFeeCents } = parsed.data;
+  const { items, meta, totalCents, deliveryFeeCents, paymentChoice = "deposit" } = parsed.data;
   const settings = await prisma.shopSettings.findFirst();
   if (!settings) return NextResponse.json({ error: "Shop not configured" }, { status: 500 });
 
@@ -35,9 +35,19 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Order below minimum" }, { status: 400 });
   }
 
+  const policy = getPaymentPolicy(items as CartItem[], totalCents, {
+    depositPercent: settings.depositPercent,
+    fullPaymentThresholdCents: settings.fullPaymentThresholdCents,
+  });
+
+  const payment = resolveCheckoutPayment(
+    policy.payInFullOnly ? "full" : paymentChoice,
+    policy
+  );
+
   const orderNumber = generateOrderNumber();
   const needsReview = hasSemiCustom(items as CartItem[]);
-  const status = needsReview ? "PENDING_REVIEW" : "PENDING_DEPOSIT";
+  const status = needsReview ? "PENDING_REVIEW" : payment.paidInFull ? "CONFIRMED" : "PENDING_DEPOSIT";
 
   const order = await prisma.order.create({
     data: {
@@ -52,8 +62,9 @@ export async function POST(req: Request) {
       subtotalCents: subtotal,
       deliveryFeeCents,
       totalCents,
-      depositCents,
-      balanceDueCents: totalCents - depositCents,
+      depositCents: payment.depositCents,
+      balanceDueCents: payment.balanceDueCents,
+      paidInFull: payment.paidInFull,
       items: {
         create: (items as CartItem[]).map((item) => ({
           productId: item.productId,
@@ -73,12 +84,16 @@ export async function POST(req: Request) {
     },
   });
 
+  const chargeLabel = payment.paidInFull ? "Payment" : "Deposit";
+
   if (!stripe) {
     await prisma.order.update({
       where: { id: order.id },
-      data: { depositPaid: true, status: needsReview ? "PENDING_REVIEW" : "CONFIRMED" },
+      data: {
+        depositPaid: true,
+        status: needsReview ? "PENDING_REVIEW" : "CONFIRMED",
+      },
     });
-    // Relative URL keeps the user on the same host (Railway, local, etc.)
     return NextResponse.json({ url: `/order/success?order=${orderNumber}&demo=1` });
   }
 
@@ -90,16 +105,22 @@ export async function POST(req: Request) {
       {
         price_data: {
           currency: "usd",
-          unit_amount: depositCents,
+          unit_amount: payment.chargeCents,
           product_data: {
-            name: `Deposit for order ${orderNumber}`,
-            description: "B's Sweet Spot — 25% order deposit",
+            name: `${chargeLabel} for order ${orderNumber}`,
+            description: payment.paidInFull
+              ? "B's Sweet Spot — paid in full"
+              : `B's Sweet Spot — ${settings.depositPercent}% deposit`,
           },
         },
         quantity: 1,
       },
     ],
-    metadata: { orderId: order.id, orderNumber },
+    metadata: {
+      orderId: order.id,
+      orderNumber,
+      paidInFull: payment.paidInFull ? "true" : "false",
+    },
     success_url: `${siteUrl}/order/success?order=${orderNumber}`,
     cancel_url: `${siteUrl}/order?cancelled=1`,
   });

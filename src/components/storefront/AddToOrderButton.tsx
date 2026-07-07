@@ -4,6 +4,17 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { OrderType } from "@prisma/client";
 import { useCart } from "@/components/storefront/CartProvider";
+import { formatPartySelections, getPartyPackageConfig, isPartyPackage } from "@/lib/party-packages";
+import {
+  formatAddOnNames,
+  isCupcakeCategory,
+  isRoundCakeCategory,
+  isSheetCakeCategory,
+} from "@/lib/cake-pricing";
+import { PartyPackageForm } from "@/components/storefront/PartyPackageForm";
+import { CupcakeForm } from "@/components/storefront/CupcakeForm";
+import { RoundCakeForm } from "@/components/storefront/RoundCakeForm";
+import { SheetCakeForm } from "@/components/storefront/SheetCakeForm";
 
 type Props = {
   product: {
@@ -17,37 +28,45 @@ type Props = {
     allowFrosting: boolean;
     allowWriting: boolean;
   };
+  categorySlug: string;
   flavors: string[];
   toppings: string[];
 };
 
-export function AddToOrderButton({ product, flavors, toppings }: Props) {
+export function AddToOrderButton({ product, categorySlug, flavors, toppings }: Props) {
   const router = useRouter();
   const { addItem } = useCart();
   const [open, setOpen] = useState(false);
-  const [flavor, setFlavor] = useState(flavors[0] ?? "");
-  const [frosting, setFrosting] = useState("Buttercream");
-  const [selectedToppings, setSelectedToppings] = useState<string[]>([]);
-  const [writing, setWriting] = useState("");
-  const [designNotes, setDesignNotes] = useState("");
-  const [allergyNotes, setAllergyNotes] = useState("");
-  const [quantity, setQuantity] = useState(1);
 
-  function handleAdd() {
+  const partyMode = isPartyPackage(categorySlug);
+  const partyConfig = partyMode ? getPartyPackageConfig(product.slug) : null;
+  const cupcakeMode = isCupcakeCategory(categorySlug);
+  const roundCakeMode = isRoundCakeCategory(categorySlug);
+  const sheetCakeMode = isSheetCakeCategory(categorySlug);
+
+  function handleAddParty(data: {
+    treatTypes: string[];
+    themeColors: string;
+    designNotes: string;
+    allergyNotes: string;
+    quantity: number;
+  }) {
+    const mapped = formatPartySelections(data);
     addItem({
       id: crypto.randomUUID(),
       productId: product.id,
       productName: product.name,
       productSlug: product.slug,
+      categorySlug,
       orderType: product.orderType,
       unitPriceCents: product.basePriceCents,
-      quantity,
-      flavor: product.allowFlavor ? flavor : undefined,
-      frosting: product.allowFrosting ? frosting : undefined,
-      toppings: product.allowTopping ? selectedToppings : undefined,
-      writing: product.allowWriting ? writing : undefined,
-      designNotes: product.orderType === "SEMI_CUSTOM" ? designNotes : undefined,
-      allergyNotes: allergyNotes || undefined,
+      quantity: data.quantity,
+      treatTypes: data.treatTypes,
+      themeColors: data.themeColors,
+      flavor: mapped.flavor,
+      frosting: mapped.frosting,
+      designNotes: mapped.designNotes,
+      allergyNotes: data.allergyNotes || undefined,
     });
     setOpen(false);
     router.push("/order");
@@ -59,6 +78,171 @@ export function AddToOrderButton({ product, flavors, toppings }: Props) {
         Add to Order
       </button>
     );
+  }
+
+  if (partyMode && partyConfig) {
+    return (
+      <PartyPackageForm
+        productName={product.name}
+        orderType={product.orderType}
+        config={partyConfig}
+        onSubmit={handleAddParty}
+        onCancel={() => setOpen(false)}
+      />
+    );
+  }
+
+  if (cupcakeMode) {
+    return (
+      <CupcakeForm
+        productSlug={product.slug}
+        productName={product.name}
+        orderType={product.orderType}
+        flavors={flavors}
+        onSubmit={(data) => {
+          addItem({
+            id: crypto.randomUUID(),
+            productId: product.id,
+            productName: data.displayName,
+            productSlug: product.slug,
+            categorySlug,
+            orderType: product.orderType,
+            unitPriceCents: data.unitPriceCents,
+            quantity: 1,
+            flavor: data.flavor,
+            frosting: data.frosting,
+            dozenCount: data.dozenCount,
+            designNotes: data.designNotes || undefined,
+            allergyNotes: data.allergyNotes || undefined,
+          });
+          setOpen(false);
+          router.push("/order");
+        }}
+        onCancel={() => setOpen(false)}
+      />
+    );
+  }
+
+  if (roundCakeMode) {
+    return (
+      <RoundCakeForm
+        productSlug={product.slug}
+        productName={product.name}
+        orderType={product.orderType}
+        flavors={flavors}
+        onSubmit={(data) => {
+          addItem({
+            id: crypto.randomUUID(),
+            productId: product.id,
+            productName: data.displayName,
+            productSlug: product.slug,
+            categorySlug,
+            orderType: product.orderType,
+            unitPriceCents: data.unitPriceCents,
+            quantity: 1,
+            flavor: data.flavor,
+            frosting: data.frosting,
+            cakeSize: data.cakeSize,
+            toppings: formatAddOnNames(data.addOns),
+            addOns: formatAddOnNames(data.addOns),
+            writing: data.writing || undefined,
+            designNotes: data.designNotes || undefined,
+            allergyNotes: data.allergyNotes || undefined,
+          });
+          setOpen(false);
+          router.push("/order");
+        }}
+        onCancel={() => setOpen(false)}
+      />
+    );
+  }
+
+  if (sheetCakeMode) {
+    return (
+      <SheetCakeForm
+        productSlug={product.slug}
+        productName={product.name}
+        orderType={product.orderType}
+        flavors={flavors}
+        onSubmit={(data) => {
+          addItem({
+            id: crypto.randomUUID(),
+            productId: product.id,
+            productName: data.displayName,
+            productSlug: product.slug,
+            categorySlug,
+            orderType: product.orderType,
+            unitPriceCents: data.unitPriceCents,
+            quantity: 1,
+            flavor: data.flavor,
+            frosting: data.frosting,
+            toppings: formatAddOnNames(data.addOns),
+            addOns: formatAddOnNames(data.addOns),
+            writing: data.writing || undefined,
+            designNotes: data.designNotes || undefined,
+            allergyNotes: data.allergyNotes || undefined,
+          });
+          setOpen(false);
+          router.push("/order");
+        }}
+        onCancel={() => setOpen(false)}
+      />
+    );
+  }
+
+  return (
+    <LegacyCakeForm
+      product={product}
+      categorySlug={categorySlug}
+      flavors={flavors}
+      toppings={toppings}
+      onCancel={() => setOpen(false)}
+    />
+  );
+}
+
+function LegacyCakeForm({
+  product,
+  categorySlug,
+  flavors,
+  toppings,
+  onCancel,
+}: {
+  product: Props["product"];
+  categorySlug: string;
+  flavors: string[];
+  toppings: string[];
+  onCancel: () => void;
+}) {
+  const router = useRouter();
+  const { addItem } = useCart();
+  const [flavor, setFlavor] = useState(flavors[0] ?? "");
+  const [frosting, setFrosting] = useState("Buttercream");
+  const [selectedToppings, setSelectedToppings] = useState<string[]>([]);
+  const [writing, setWriting] = useState("");
+  const [designNotes, setDesignNotes] = useState("");
+  const [allergyNotes, setAllergyNotes] = useState("");
+  const [quantity, setQuantity] = useState(1);
+
+  function handleAddCake() {
+    addItem({
+      id: crypto.randomUUID(),
+      productId: product.id,
+      productName: product.name,
+      productSlug: product.slug,
+      categorySlug,
+      orderType: product.orderType,
+      unitPriceCents: product.basePriceCents,
+      quantity,
+      flavor: product.allowFlavor ? flavor : undefined,
+      frosting: product.allowFrosting ? frosting : undefined,
+      toppings: product.allowTopping ? selectedToppings : undefined,
+      writing: product.allowWriting ? writing : undefined,
+      designNotes: product.orderType === "SEMI_CUSTOM" ? designNotes : undefined,
+      allergyNotes: allergyNotes || undefined,
+    });
+    onCancel();
+    router.push("/order");
   }
 
   return (
@@ -123,10 +307,10 @@ export function AddToOrderButton({ product, flavors, toppings }: Props) {
         <textarea value={allergyNotes} onChange={(e) => setAllergyNotes(e.target.value)} className="input min-h-[80px]" placeholder="Gluten free, nut allergy, etc." />
       </div>
       <div className="flex gap-3">
-        <button type="button" onClick={handleAdd} className="btn-primary" disabled={product.orderType === "SEMI_CUSTOM" && !designNotes.trim()}>
+        <button type="button" onClick={handleAddCake} className="btn-primary" disabled={product.orderType === "SEMI_CUSTOM" && !designNotes.trim()}>
           Add to Cart
         </button>
-        <button type="button" onClick={() => setOpen(false)} className="btn-secondary">Cancel</button>
+        <button type="button" onClick={onCancel} className="btn-secondary">Cancel</button>
       </div>
     </div>
   );

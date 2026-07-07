@@ -11,6 +11,7 @@ type Settings = {
   location: string;
   orderMinimumCents: number;
   depositPercent: number;
+  fullPaymentThresholdCents: number;
   leadTimeDays: number;
   deliveryRadiusMiles: number;
   deliveryFeeCents: number;
@@ -58,6 +59,11 @@ export function SettingsForm({ settings }: { settings: Settings }) {
         <div>
           <label className="label">Order minimum ($)</label>
           <input type="number" step="0.01" className="input" value={(form.orderMinimumCents / 100).toFixed(2)} onChange={(e) => setForm({ ...form, orderMinimumCents: Math.round(parseFloat(e.target.value) * 100) })} />
+        </div>
+        <div>
+          <label className="label">Full payment threshold ($)</label>
+          <p className="mb-1 text-xs text-[var(--warm-gray)]">Standard orders below this amount pay in full. Larger or custom orders can choose deposit or full payment.</p>
+          <input type="number" step="0.01" className="input" value={(form.fullPaymentThresholdCents / 100).toFixed(2)} onChange={(e) => setForm({ ...form, fullPaymentThresholdCents: Math.round(parseFloat(e.target.value) * 100) })} />
         </div>
         <div>
           <label className="label">Deposit %</label>

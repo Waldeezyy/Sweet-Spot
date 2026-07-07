@@ -11,6 +11,7 @@ const schema = z.object({
   location: z.string().optional(),
   orderMinimumCents: z.number().int().optional(),
   depositPercent: z.number().int().optional(),
+  fullPaymentThresholdCents: z.number().int().optional(),
   leadTimeDays: z.number().int().optional(),
   deliveryRadiusMiles: z.number().int().optional(),
   deliveryFeeCents: z.number().int().optional(),

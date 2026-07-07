@@ -45,6 +45,7 @@ export async function POST(req: Request) {
         balanceDueCents: order.balanceDueCents,
         scheduledDate: format(order.scheduledDate, "MMM d, yyyy"),
         pendingReview: order.status === "PENDING_REVIEW",
+        paidInFull: order.paidInFull,
       });
 
       await sendAdminNewOrder({

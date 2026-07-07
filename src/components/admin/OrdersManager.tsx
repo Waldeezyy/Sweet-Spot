@@ -4,6 +4,16 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { formatCents } from "@/lib/utils";
 import { format } from "date-fns";
+import { formatPartyItemSummary, isPartyProductSlug } from "@/lib/party-packages";
+
+type OrderItem = {
+  productName: string;
+  productSlug: string | null;
+  quantity: number;
+  flavor: string | null;
+  frosting: string | null;
+  designNotes: string | null;
+};
 
 type Order = {
   id: string;
@@ -14,8 +24,23 @@ type Order = {
   scheduledDate: string;
   totalCents: number;
   finalTotalCents: number | null;
-  items: { productName: string; quantity: number; designNotes: string | null }[];
+  depositCents: number;
+  balanceDueCents: number;
+  paidInFull: boolean;
+  items: OrderItem[];
 };
+
+function formatOrderItemLine(item: OrderItem): string {
+  if (item.productSlug && isPartyProductSlug(item.productSlug)) {
+    const details = formatPartyItemSummary(item);
+    return `${item.productName} × ${item.quantity}${details.length ? ` — ${details.join(" · ")}` : ""}`;
+  }
+  const parts = [item.productName + ` × ${item.quantity}`];
+  if (item.flavor) parts.push(`Flavor: ${item.flavor}`);
+  if (item.frosting) parts.push(`Frosting: ${item.frosting}`);
+  if (item.designNotes) parts.push(item.designNotes);
+  return parts.join(" — ");
+}
 
 const statusActions: Record<string, { label: string; next: string }[]> = {
   PENDING_REVIEW: [{ label: "Confirm order", next: "CONFIRMED" }],
@@ -65,9 +90,14 @@ export function OrdersManager({ orders: initial }: { orders: Order[] }) {
           <div className="card max-h-[90vh] max-w-lg overflow-y-auto">
             <h3 className="font-semibold">{selected.orderNumber}</h3>
             <p className="text-sm">{selected.customerName} — {selected.customerEmail}</p>
+            <p className="mt-2 text-sm text-[var(--warm-gray)]">
+              {selected.paidInFull
+                ? `Paid in full: ${formatCents(selected.depositCents)}`
+                : `Deposit: ${formatCents(selected.depositCents)} · Balance due: ${formatCents(selected.balanceDueCents)}`}
+            </p>
             <ul className="mt-4 space-y-2 text-sm">
               {selected.items.map((i, idx) => (
-                <li key={idx}>{i.productName} × {i.quantity}{i.designNotes && ` — ${i.designNotes}`}</li>
+                <li key={idx}>{formatOrderItemLine(i)}</li>
               ))}
             </ul>
             {selected.status === "PENDING_REVIEW" && (

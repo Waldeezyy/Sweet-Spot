@@ -63,22 +63,50 @@ type ProductSeed = {
   orderType?: "STANDARD" | "SEMI_CUSTOM";
   categorySlug: string;
   sortOrder: number;
+  allowFlavor?: boolean;
+  allowTopping?: boolean;
+  allowFrosting?: boolean;
+  allowWriting?: boolean;
+};
+
+const PARTY_NO_CAKE_OPTIONS = {
+  allowFlavor: false,
+  allowTopping: false,
+  allowFrosting: false,
+  allowWriting: false,
+} as const;
+
+const PARTY_PRODUCT_PATCHES: Record<string, { name?: string; description: string }> = {
+  "small-party-package": {
+    description: "2 dozen treats. Choose 1 treat type. Simple theme colors (max 2 colors).",
+  },
+  "medium-party-package": {
+    description: "4 dozen treats. Up to 2 treat types. Themed & basic decor included.",
+  },
+  "large-party-package": {
+    description: "6 dozen treats. Up to 3 treat types. Full theme & detailed decor included.",
+  },
+  "your-party-package": {
+    name: "Create Your Own Party Pack!",
+    description:
+      "Starting at $180. Custom designs & decals. Mix & match any treat type — Oreos, Rice Krispies, Cake Pops, Pretzels, Wafer Cookies, Marshmallows, Strawberries & more! Limited to 3 colors per order.",
+  },
 };
 
 const products: ProductSeed[] = [
-  { name: "Basic Quarter Sheet Cake", slug: "basic-quarter-sheet-cake", description: "Basic Quarter sheet cake. Frosted in either white Buttercream or Whipped and your choice of writing on top.", basePriceCents: 5000, categorySlug: "sheet-cakes", sortOrder: 1, orderType: "STANDARD" },
-  { name: "Custom Quarter Sheet Cake", slug: "custom-quarter-sheet-cake", description: "Price varies from $60-$80 depending on design and detail. Customer chooses color, type of frosting, and design.", basePriceCents: 6000, isStartingPrice: true, orderType: "SEMI_CUSTOM", categorySlug: "sheet-cakes", sortOrder: 2 },
-  { name: "Basic Half Sheet", slug: "basic-half-sheet", description: "Basic Half Sheet Cake frosted with either buttercream or whipped frosting and your choice of writing on top.", basePriceCents: 8000, categorySlug: "sheet-cakes", sortOrder: 3, orderType: "STANDARD" },
-  { name: "Custom Half Sheet Cake", slug: "custom-half-sheet-cake", description: "Custom half sheet with your choice of colors, frosting, and design. Price varies by complexity.", basePriceCents: 9500, isStartingPrice: true, orderType: "SEMI_CUSTOM", categorySlug: "sheet-cakes", sortOrder: 4 },
-  { name: "Basic 6-10 inch Round Cakes", slug: "basic-round-cakes", description: "Round cakes in 6, 8, or 10 inch sizes. Frosted with buttercream or whipped and your choice of writing.", basePriceCents: 4000, isStartingPrice: true, categorySlug: "round-cakes", sortOrder: 5, orderType: "STANDARD" },
-  { name: "Custom 6-10 inch Round Cake", slug: "custom-round-cake", description: "6 inch - $50-$65, 8 inch - $65-$85, 10 inch - $85-$110. Customer chooses frosting type, color/theme, and flavor. Filling between layers adds $10.", basePriceCents: 5000, isStartingPrice: true, orderType: "SEMI_CUSTOM", categorySlug: "round-cakes", sortOrder: 6 },
-  { name: "Standard Cupcakes", slug: "standard-cupcakes", description: "Standard flavors: Vanilla, Chocolate, Marble. Frosted with either Vanilla Buttercream or whipped.", basePriceCents: 2500, categorySlug: "cupcakes", sortOrder: 7, orderType: "STANDARD" },
-  { name: "Specialty Cupcakes", slug: "specialty-cupcakes", description: "Premium flavors and specialty designs. Starting price for a dozen.", basePriceCents: 3000, isStartingPrice: true, categorySlug: "cupcakes", sortOrder: 8, orderType: "SEMI_CUSTOM" },
-  { name: "Custom Cupcakes", slug: "custom-cupcakes", description: "Fully custom cupcake designs with your choice of colors, themes, and flavors.", basePriceCents: 3500, isStartingPrice: true, orderType: "SEMI_CUSTOM", categorySlug: "cupcakes", sortOrder: 9 },
-  { name: "Small Party Package", slug: "small-party-package", description: "2 dozen of any one treat type. Limit of 2 colors. Simple theme.", basePriceCents: 5500, categorySlug: "party-packages", sortOrder: 10, orderType: "STANDARD" },
-  { name: "Medium Party Package", slug: "medium-party-package", description: "Perfect for medium gatherings. Multiple treat options with coordinated theme.", basePriceCents: 11000, categorySlug: "party-packages", sortOrder: 11, orderType: "STANDARD" },
-  { name: "Large Party Package", slug: "large-party-package", description: "Large event package with variety of treats and custom theme options.", basePriceCents: 16000, categorySlug: "party-packages", sortOrder: 12, orderType: "STANDARD" },
-  { name: "Your Party Package", slug: "your-party-package", description: "Prices vary depending on quantity, colors/themes, designs and decor. Limited to 3 colors per order. Any treat type.", basePriceCents: 18000, isStartingPrice: true, orderType: "SEMI_CUSTOM", categorySlug: "party-packages", sortOrder: 13 },
+  { name: "Basic Quarter Sheet Cake", slug: "basic-quarter-sheet-cake", description: "Quarter sheet (serves 20–25). Buttercream or whipped finish with your choice of writing on top. $50.", basePriceCents: 5000, categorySlug: "sheet-cakes", sortOrder: 1, orderType: "STANDARD" },
+  { name: "Custom Quarter Sheet Cake", slug: "custom-quarter-sheet-cake", description: "Quarter sheet (serves 20–25). Your choice of colors, frosting, and design. Starting at $65 — final price $65–$80 depending on detail.", basePriceCents: 6500, isStartingPrice: true, orderType: "SEMI_CUSTOM", categorySlug: "sheet-cakes", sortOrder: 2 },
+  { name: "Basic Half Sheet", slug: "basic-half-sheet", description: "Half sheet (serves 40–50). Buttercream or whipped finish with your choice of writing on top. $80.", basePriceCents: 8000, categorySlug: "sheet-cakes", sortOrder: 3, orderType: "STANDARD" },
+  { name: "Custom Half Sheet Cake", slug: "custom-half-sheet-cake", description: "Half sheet (serves 40–50). Your choice of colors, frosting, and design. Starting at $95 — final price $95–$120 depending on detail.", basePriceCents: 9500, isStartingPrice: true, orderType: "SEMI_CUSTOM", categorySlug: "sheet-cakes", sortOrder: 4 },
+  { name: "Basic 6-10 inch Round Cakes", slug: "basic-round-cakes", description: "Buttercream finish round cakes. 6\" serves 8–12 ($40) · 8\" serves 15–20 ($55) · 10\" serves 25–30 ($70). Choose size when ordering.", basePriceCents: 4000, isStartingPrice: true, categorySlug: "round-cakes", sortOrder: 5, orderType: "STANDARD" },
+  { name: "Custom 6-10 inch Round Cake", slug: "custom-round-cake", description: "Custom buttercream round cakes. 6\" from $50 ($50–$65) · 8\" from $65 ($65–$85) · 10\" from $85 ($85–$110). Choose size, colors, theme, and flavor when ordering.", basePriceCents: 5000, isStartingPrice: true, orderType: "SEMI_CUSTOM", categorySlug: "round-cakes", sortOrder: 6 },
+  { name: "Standard Cupcakes", slug: "standard-cupcakes", description: "Vanilla, Chocolate, or Marble. Frosted with vanilla buttercream or whipped. 1 dozen $25 · 2 dozen $45.", basePriceCents: 2500, categorySlug: "cupcakes", sortOrder: 7, orderType: "STANDARD" },
+  { name: "Specialty Cupcakes", slug: "specialty-cupcakes", description: "Strawberry, Red Velvet, Lemon, and more specialty flavors. 1 dozen $30 · 2 dozen $55.", basePriceCents: 3000, categorySlug: "cupcakes", sortOrder: 8, orderType: "STANDARD" },
+  { name: "Custom Cupcakes", slug: "custom-cupcakes", description: "Themed cupcakes with your choice of colors, toppers, and designs. Starting at $35/dozen ($35–$45 depending on detail). 2 dozen from $70.", basePriceCents: 3500, isStartingPrice: true, orderType: "SEMI_CUSTOM", categorySlug: "cupcakes", sortOrder: 9 },
+  { name: "Small Party Package", slug: "small-party-package", description: PARTY_PRODUCT_PATCHES["small-party-package"].description, basePriceCents: 5500, categorySlug: "party-packages", sortOrder: 10, orderType: "STANDARD", ...PARTY_NO_CAKE_OPTIONS },
+  { name: "Medium Party Package", slug: "medium-party-package", description: PARTY_PRODUCT_PATCHES["medium-party-package"].description, basePriceCents: 11000, categorySlug: "party-packages", sortOrder: 11, orderType: "STANDARD", ...PARTY_NO_CAKE_OPTIONS },
+  { name: "Large Party Package", slug: "large-party-package", description: PARTY_PRODUCT_PATCHES["large-party-package"].description, basePriceCents: 16000, categorySlug: "party-packages", sortOrder: 12, orderType: "STANDARD", ...PARTY_NO_CAKE_OPTIONS },
+  { name: "Create Your Own Party Pack!", slug: "your-party-package", description: PARTY_PRODUCT_PATCHES["your-party-package"].description, basePriceCents: 18000, isStartingPrice: true, orderType: "SEMI_CUSTOM", categorySlug: "party-packages", sortOrder: 13, ...PARTY_NO_CAKE_OPTIONS },
   { name: "Mini Cake (5.5oz foil loaf pan)", slug: "mini-cake", description: "Single-serve mini cakes in foil loaf pans. Perfect for game nights and individual treats.", basePriceCents: 2500, isStartingPrice: true, categorySlug: "mini-cakes", sortOrder: 14, orderType: "STANDARD" },
   { name: "Basic Cake Cookies", slug: "basic-cake-cookies", description: "Delicious cake-style cookies in classic flavors.", basePriceCents: 2000, categorySlug: "cookies", sortOrder: 15, orderType: "STANDARD" },
   { name: "Premium Cake Cookies", slug: "premium-cake-cookies", description: "Any flavor, any toppings. Premium decorated cake cookies.", basePriceCents: 4000, categorySlug: "cookies", sortOrder: 16, orderType: "STANDARD" },
@@ -97,6 +125,7 @@ export async function seedDatabase() {
   const existing = await prisma.product.count();
   if (existing > 0) {
     console.log("Database already seeded, skipping.");
+    await ensurePartyPackageSettings();
     return;
   }
 
@@ -121,6 +150,10 @@ export async function seedDatabase() {
         orderType: p.orderType ?? "STANDARD",
         sortOrder: p.sortOrder,
         categoryId: categoryMap[p.categorySlug],
+        allowFlavor: p.allowFlavor ?? true,
+        allowTopping: p.allowTopping ?? true,
+        allowFrosting: p.allowFrosting ?? true,
+        allowWriting: p.allowWriting ?? true,
       },
     });
   }
@@ -159,6 +192,7 @@ All cakes are made to order — fresh according to customer orders. Order in bul
       location: "Dimondale, Michigan",
       orderMinimumCents: 2500,
       depositPercent: 25,
+      fullPaymentThresholdCents: 7500,
       leadTimeDays: 2,
       deliveryRadiusMiles: 12,
       pickupInstructions: "Pick up orders must be picked up no later than noon on the scheduled pick up day.",
@@ -168,4 +202,21 @@ All cakes are made to order — fresh according to customer orders. Order in bul
   });
 
   console.log("Database seeded successfully.");
+  await ensurePartyPackageSettings();
+}
+
+/** Patches party package products on every seed — safe for existing databases. */
+export async function ensurePartyPackageSettings() {
+  for (const [slug, patch] of Object.entries(PARTY_PRODUCT_PATCHES)) {
+    const result = await prisma.product.updateMany({
+      where: { slug },
+      data: {
+        ...patch,
+        ...PARTY_NO_CAKE_OPTIONS,
+      },
+    });
+    if (result.count > 0) {
+      console.log(`Updated party package: ${slug}`);
+    }
+  }
 }

@@ -24,15 +24,27 @@ export async function sendOrderConfirmation(params: {
   balanceDueCents: number;
   scheduledDate: string;
   pendingReview?: boolean;
+  paidInFull?: boolean;
 }) {
-  const { to, orderNumber, totalCents, depositCents, balanceDueCents, scheduledDate, pendingReview } = params;
+  const { to, orderNumber, totalCents, depositCents, balanceDueCents, scheduledDate, pendingReview, paidInFull } = params;
+
+  const paymentLines = paidInFull
+    ? `<p>Total: ${formatCents(totalCents)}<br/>Paid in full: ${formatCents(depositCents)}</p>`
+    : `<p>Total: ${formatCents(totalCents)}<br/>Deposit paid: ${formatCents(depositCents)}<br/>Balance due: ${formatCents(balanceDueCents)}</p>`;
+
+  const reviewNote = pendingReview
+    ? paidInFull
+      ? "<p>Brandy will confirm your final price within 24 hours based on your design. If the final total is higher, we'll reach out about the difference.</p>"
+      : "<p>Your deposit secures your date. Brandy will confirm your final price within 24 hours based on your design.</p>"
+    : "";
+
   await sendEmail(
     to,
     `Order confirmed — ${orderNumber}`,
     `<h1>Thank you for your order!</h1>
     <p>Order <strong>${orderNumber}</strong> for <strong>${scheduledDate}</strong>.</p>
-    ${pendingReview ? "<p>Your deposit secures your date. Brandy will confirm your final price within 24 hours based on your design.</p>" : ""}
-    <p>Total: ${formatCents(totalCents)}<br/>Deposit paid: ${formatCents(depositCents)}<br/>Balance due: ${formatCents(balanceDueCents)}</p>`
+    ${reviewNote}
+    ${paymentLines}`
   );
 }
 

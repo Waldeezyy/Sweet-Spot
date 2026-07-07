@@ -4,12 +4,15 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useCart } from "@/components/storefront/CartProvider";
 import { formatCents } from "@/lib/utils";
-import { calculateDeposit, hasSemiCustom } from "@/lib/cart";
+import { hasSemiCustom } from "@/lib/cart";
+import { getPaymentPolicy, resolveCheckoutPayment, type PaymentChoice } from "@/lib/payment-policy";
+import { formatCartItemDetails } from "@/lib/order-item-display";
 import { OrderSteps } from "@/components/order/OrderSteps";
 
 type Settings = {
   orderMinimumCents: number;
   depositPercent: number;
+  fullPaymentThresholdCents: number;
   leadTimeDays: number;
   deliveryRadiusMiles: number;
   deliveryFeeCents: number;
@@ -26,6 +29,7 @@ export default function OrderPage() {
   const [blockedDates, setBlockedDates] = useState<BlockedDate[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
+  const [paymentChoice, setPaymentChoice] = useState<PaymentChoice>("deposit");
 
   useEffect(() => {
     fetch("/api/settings").then((r) => r.json()).then(setSettings);
@@ -34,10 +38,21 @@ export default function OrderPage() {
 
   const deliveryFee = meta.fulfillmentType === "DELIVERY" ? (settings?.deliveryFeeCents ?? 0) : 0;
   const totalCents = subtotalCents + deliveryFee;
-  const depositCents = settings ? calculateDeposit(totalCents, settings.depositPercent) : 0;
-  const balanceDue = totalCents - depositCents;
   const minimum = settings?.orderMinimumCents ?? 2500;
   const belowMinimum = subtotalCents < minimum;
+
+  const policy = settings
+    ? getPaymentPolicy(items, totalCents, {
+        depositPercent: settings.depositPercent,
+        fullPaymentThresholdCents: settings.fullPaymentThresholdCents,
+      })
+    : null;
+
+  const payment = policy
+    ? resolveCheckoutPayment(policy.payInFullOnly ? "full" : paymentChoice, policy)
+    : null;
+
+  const semiCustom = hasSemiCustom(items);
 
   function validateStep(): boolean {
     const e: Record<string, string> = {};
@@ -72,7 +87,13 @@ export default function OrderPage() {
     const res = await fetch("/api/checkout", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ items, meta, totalCents, depositCents, deliveryFeeCents: deliveryFee }),
+      body: JSON.stringify({
+        items,
+        meta,
+        totalCents,
+        deliveryFeeCents: deliveryFee,
+        paymentChoice: policy?.payInFullOnly ? "full" : paymentChoice,
+      }),
     });
     const data = await res.json();
     setLoading(false);
@@ -97,8 +118,9 @@ export default function OrderPage() {
               <div key={item.id} className="card flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <h3 className="font-semibold">{item.productName} × {item.quantity}</h3>
-                  {item.flavor && <p className="text-sm text-[var(--warm-gray)]">Flavor: {item.flavor}</p>}
-                  {item.designNotes && <p className="text-sm text-[var(--warm-gray)]">Design: {item.designNotes}</p>}
+                  {formatCartItemDetails(item).map((line) => (
+                    <p key={line} className="text-sm text-[var(--warm-gray)]">{line}</p>
+                  ))}
                 </div>
                 <div className="flex items-center gap-4">
                   <span className="font-semibold">{formatCents(item.unitPriceCents * item.quantity)}</span>
@@ -187,12 +209,57 @@ export default function OrderPage() {
             <label className="label">Phone (optional)</label>
             <input className="input" value={meta.customerPhone ?? ""} onChange={(e) => setMeta({ ...meta, customerPhone: e.target.value })} />
           </div>
-          <div className="rounded-xl bg-[var(--cream)] p-4 text-sm">
+          <div className="rounded-xl bg-[var(--cream)] p-4 text-sm space-y-1">
             <p>Subtotal: {formatCents(subtotalCents)}</p>
             {deliveryFee > 0 && <p>Delivery: {formatCents(deliveryFee)}</p>}
-            <p className="font-semibold">Total: {formatCents(totalCents)}</p>
-            <p className="mt-2">Deposit ({settings?.depositPercent}%): {formatCents(depositCents)}</p>
-            <p>Balance due at pickup/delivery: {formatCents(balanceDue)}</p>
+            <p className="font-semibold">Order total: {formatCents(totalCents)}</p>
+
+            {policy && (
+              <>
+                <p className="mt-3 text-[var(--warm-gray)]">{policy.reason}</p>
+
+                {policy.payInFullOnly ? (
+                  <p className="mt-2 font-semibold text-[var(--chocolate)]">
+                    Pay now: {formatCents(payment?.chargeCents ?? totalCents)}
+                  </p>
+                ) : (
+                  <div className="mt-4 space-y-3">
+                    <p className="font-medium">How would you like to pay?</p>
+                    <label className={`flex cursor-pointer gap-3 rounded-xl border-2 p-4 ${paymentChoice === "deposit" ? "border-[var(--chocolate)] bg-white" : "border-[var(--blush)]"}`}>
+                      <input
+                        type="radio"
+                        name="paymentChoice"
+                        checked={paymentChoice === "deposit"}
+                        onChange={() => setPaymentChoice("deposit")}
+                        className="mt-1"
+                      />
+                      <div>
+                        <p className="font-semibold">Pay deposit ({settings?.depositPercent}%)</p>
+                        <p className="text-[var(--warm-gray)]">
+                          {formatCents(policy.depositCents)} now · {formatCents(policy.balanceAfterDeposit)} due at pickup/delivery
+                        </p>
+                      </div>
+                    </label>
+                    <label className={`flex cursor-pointer gap-3 rounded-xl border-2 p-4 ${paymentChoice === "full" ? "border-[var(--chocolate)] bg-white" : "border-[var(--blush)]"}`}>
+                      <input
+                        type="radio"
+                        name="paymentChoice"
+                        checked={paymentChoice === "full"}
+                        onChange={() => setPaymentChoice("full")}
+                        className="mt-1"
+                      />
+                      <div>
+                        <p className="font-semibold">Pay in full now</p>
+                        <p className="text-[var(--warm-gray)]">
+                          {formatCents(policy.fullCents)} today — nothing more to pay at pickup
+                          {semiCustom && " (based on current estimate; Brandy will confirm final price)"}
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+                )}
+              </>
+            )}
           </div>
           {errors.checkout && <p className="text-sm text-red-600">{errors.checkout}</p>}
         </section>
@@ -214,8 +281,12 @@ export default function OrderPage() {
             Next
           </button>
         ) : (
-          <button type="button" onClick={handleCheckout} disabled={loading} className="btn-primary">
-            {loading ? "Processing..." : `Pay ${formatCents(depositCents)} Deposit`}
+          <button type="button" onClick={handleCheckout} disabled={loading || !payment} className="btn-primary">
+            {loading
+              ? "Processing..."
+              : payment?.paidInFull
+                ? `Pay ${formatCents(payment.chargeCents)} in Full`
+                : `Pay ${formatCents(payment?.chargeCents ?? 0)} Deposit`}
           </button>
         )}
       </div>

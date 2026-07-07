@@ -5,6 +5,7 @@ export type CartItem = {
   productId: string;
   productName: string;
   productSlug: string;
+  categorySlug?: string;
   orderType: OrderType;
   unitPriceCents: number;
   quantity: number;
@@ -12,9 +13,14 @@ export type CartItem = {
   frosting?: string;
   toppings?: string[];
   writing?: string;
+  treatTypes?: string[];
+  themeColors?: string;
   designNotes?: string;
   allergyNotes?: string;
   inspirationPhotos?: string[];
+  cakeSize?: string;
+  dozenCount?: number;
+  addOns?: string[];
 };
 
 export type CartState = {
