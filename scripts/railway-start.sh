@@ -13,7 +13,7 @@ if [ -z "$DATABASE_URL" ]; then
 fi
 
 echo "Syncing database schema..."
-npx prisma db push
+npx prisma db push --accept-data-loss
 
 echo "Seeding database if empty..."
 npx prisma db seed
