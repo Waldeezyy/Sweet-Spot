@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { StarRating } from "@/components/storefront/StarRating";
+import { ReviewForm } from "@/components/storefront/ReviewForm";
 import { format } from "date-fns";
 
 export default async function ReviewsPage() {
@@ -31,6 +32,9 @@ export default async function ReviewsPage() {
           ))}
         </div>
       </div>
+
+      <ReviewForm />
+
       <div className="mt-10 space-y-6">
         {reviews.map((r) => (
           <article key={r.id} className="card">
