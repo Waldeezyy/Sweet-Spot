@@ -7,6 +7,7 @@ const schema = z.object({
   rating: z.number().int().min(1).max(5),
   text: z.string().min(10).max(2000),
   itemName: z.string().max(120).optional(),
+  photos: z.array(z.string().min(1)).max(3).optional(),
 });
 
 export async function POST(req: Request) {
@@ -21,6 +22,7 @@ export async function POST(req: Request) {
       rating: body.data.rating,
       text: body.data.text.trim(),
       itemName: body.data.itemName?.trim() || null,
+      photos: body.data.photos ?? [],
     },
   });
 

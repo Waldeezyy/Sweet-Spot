@@ -46,6 +46,15 @@ export default async function ReviewsPage() {
               <StarRating rating={r.rating} />
             </div>
             <p className="mt-4 text-[var(--warm-gray)]">{r.text}</p>
+            {r.photos.length > 0 && (
+              <div className="mt-4 flex flex-wrap gap-3">
+                {r.photos.map((url) => (
+                  <a key={url} href={url} target="_blank" rel="noopener noreferrer">
+                    <img src={url} alt="" className="h-24 w-24 rounded-lg object-cover" />
+                  </a>
+                ))}
+              </div>
+            )}
           </article>
         ))}
       </div>

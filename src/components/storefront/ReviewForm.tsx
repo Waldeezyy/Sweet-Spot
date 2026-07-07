@@ -3,11 +3,40 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+const MAX_PHOTOS = 3;
+
 export function ReviewForm() {
   const router = useRouter();
   const [rating, setRating] = useState(5);
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [error, setError] = useState("");
+
+  async function handlePhotoFiles(files: FileList | null) {
+    if (!files || photos.length >= MAX_PHOTOS) return;
+    setUploading(true);
+    setError("");
+    const uploads: string[] = [];
+    const remaining = MAX_PHOTOS - photos.length;
+    for (const file of Array.from(files).slice(0, remaining)) {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: form });
+      if (res.ok) {
+        const { url } = await res.json();
+        uploads.push(url);
+      } else {
+        setError("One or more photos could not be uploaded. Try smaller images.");
+      }
+    }
+    setPhotos((prev) => [...prev, ...uploads].slice(0, MAX_PHOTOS));
+    setUploading(false);
+  }
+
+  function removePhoto(url: string) {
+    setPhotos((prev) => prev.filter((p) => p !== url));
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -22,6 +51,7 @@ export function ReviewForm() {
         rating,
         text: form.get("text"),
         itemName: form.get("itemName") || undefined,
+        photos,
       }),
     });
     const data = await res.json();
@@ -29,6 +59,7 @@ export function ReviewForm() {
       setStatus("success");
       e.currentTarget.reset();
       setRating(5);
+      setPhotos([]);
       router.refresh();
     } else {
       setStatus("error");
@@ -74,6 +105,39 @@ export function ReviewForm() {
       </div>
 
       <div>
+        <label className="label">Photos of your order (optional, up to {MAX_PHOTOS})</label>
+        <input
+          type="file"
+          accept="image/*"
+          multiple
+          disabled={photos.length >= MAX_PHOTOS || uploading}
+          onChange={(e) => {
+            handlePhotoFiles(e.target.files);
+            e.target.value = "";
+          }}
+          className="input"
+        />
+        {uploading && <p className="mt-1 text-sm text-[var(--warm-gray)]">Uploading...</p>}
+        {photos.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-3">
+            {photos.map((url) => (
+              <div key={url} className="relative">
+                <img src={url} alt="" className="h-20 w-20 rounded-lg object-cover" />
+                <button
+                  type="button"
+                  onClick={() => removePhoto(url)}
+                  className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-[var(--chocolate)] text-xs text-white"
+                  aria-label="Remove photo"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div>
         <label className="label">Your review</label>
         <textarea
           name="text"
@@ -85,7 +149,7 @@ export function ReviewForm() {
         />
       </div>
 
-      <button type="submit" disabled={status === "loading"} className="btn-primary w-full sm:w-auto">
+      <button type="submit" disabled={status === "loading" || uploading} className="btn-primary w-full sm:w-auto">
         {status === "loading" ? "Submitting..." : "Submit review"}
       </button>
 

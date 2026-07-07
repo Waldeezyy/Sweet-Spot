@@ -137,6 +137,7 @@ model Review {
   rating    Int
   text      String   @db.Text
   itemName  String?
+  photos    String[] @default([])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
