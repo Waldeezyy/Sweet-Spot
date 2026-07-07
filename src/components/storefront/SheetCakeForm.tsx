@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import type { OrderType } from "@prisma/client";
 import { formatCents } from "@/lib/utils";
 import {
   ADD_ONS,
@@ -14,7 +13,6 @@ import {
 type Props = {
   productSlug: string;
   productName: string;
-  orderType: OrderType;
   flavors: string[];
   onSubmit: (data: {
     flavor: string;
@@ -29,7 +27,7 @@ type Props = {
   onCancel: () => void;
 };
 
-export function SheetCakeForm({ productSlug, productName, orderType, flavors, onSubmit, onCancel }: Props) {
+export function SheetCakeForm({ productSlug, productName, flavors, onSubmit, onCancel }: Props) {
   const isCustom = productSlug.startsWith("custom-");
   const sheetInfo = SHEET_CAKE_INFO[productSlug];
   const [flavor, setFlavor] = useState(flavors[0] ?? "");

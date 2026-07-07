@@ -128,7 +128,6 @@ export function AddToOrderButton({ product, categorySlug, flavors, toppings }: P
       <RoundCakeForm
         productSlug={product.slug}
         productName={product.name}
-        orderType={product.orderType}
         flavors={flavors}
         onSubmit={(data) => {
           addItem({
@@ -162,7 +161,6 @@ export function AddToOrderButton({ product, categorySlug, flavors, toppings }: P
       <SheetCakeForm
         productSlug={product.slug}
         productName={product.name}
-        orderType={product.orderType}
         flavors={flavors}
         onSubmit={(data) => {
           addItem({

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import type { OrderType } from "@prisma/client";
 import { formatCents } from "@/lib/utils";
 import {
   ADD_ONS,
@@ -15,7 +14,6 @@ import {
 type Props = {
   productSlug: string;
   productName: string;
-  orderType: OrderType;
   flavors: string[];
   onSubmit: (data: {
     flavor: string;
@@ -31,7 +29,7 @@ type Props = {
   onCancel: () => void;
 };
 
-export function RoundCakeForm({ productSlug, productName, orderType, flavors, onSubmit, onCancel }: Props) {
+export function RoundCakeForm({ productSlug, productName, flavors, onSubmit, onCancel }: Props) {
   const isCustom = productSlug === "custom-round-cake";
   const [cakeSize, setCakeSize] = useState<RoundCakeSizeId>("6");
   const [flavor, setFlavor] = useState(flavors[0] ?? "");
