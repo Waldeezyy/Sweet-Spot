@@ -3,6 +3,19 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { requireAdminApi } from "@/lib/admin-api";
 import { slugify } from "@/lib/slugify";
+import { normalizeScope } from "@/lib/menu-option-scope";
+
+const scopeFields = z.object({
+  categorySlugs: z.array(z.string()).optional(),
+  productSlugs: z.array(z.string()).optional(),
+});
+
+function parseScope(data: { categorySlugs?: string[]; productSlugs?: string[] }) {
+  return normalizeScope({
+    categorySlugs: data.categorySlugs ?? [],
+    productSlugs: data.productSlugs ?? [],
+  });
+}
 
 export async function GET() {
   const authResult = await requireAdminApi();
@@ -20,10 +33,11 @@ export async function POST(req: Request) {
     priceCents: z.number().int().positive(),
     priceLabel: z.string().min(1),
     sortOrder: z.number().int().optional(),
-  }).parse(await req.json());
+  }).merge(scopeFields).parse(await req.json());
   const slug = data.slug ?? slugify(data.name);
+  const scope = parseScope(data);
   const addOn = await prisma.addOnOption.create({
-    data: { ...data, slug },
+    data: { name: data.name, priceCents: data.priceCents, priceLabel: data.priceLabel, sortOrder: data.sortOrder, slug, ...scope },
   });
   return NextResponse.json(addOn);
 }

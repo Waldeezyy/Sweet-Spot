@@ -2,6 +2,19 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { requireAdminApi } from "@/lib/admin-api";
+import { normalizeScope } from "@/lib/menu-option-scope";
+
+const scopeFields = z.object({
+  categorySlugs: z.array(z.string()).optional(),
+  productSlugs: z.array(z.string()).optional(),
+});
+
+function parseScope(data: { categorySlugs?: string[]; productSlugs?: string[] }) {
+  return normalizeScope({
+    categorySlugs: data.categorySlugs ?? [],
+    productSlugs: data.productSlugs ?? [],
+  });
+}
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const authResult = await requireAdminApi();
@@ -9,11 +22,18 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const { id } = await params;
   const data = z.object({
     name: z.string().min(1).optional(),
-    flavorGroup: z.string().nullable().optional(),
     sortOrder: z.number().int().optional(),
     isActive: z.boolean().optional(),
-  }).parse(await req.json());
-  const flavor = await prisma.flavorOption.update({ where: { id }, data });
+  }).merge(scopeFields).parse(await req.json());
+  const { categorySlugs, productSlugs, ...rest } = data;
+  const scope =
+    categorySlugs !== undefined || productSlugs !== undefined
+      ? parseScope({ categorySlugs, productSlugs })
+      : {};
+  const flavor = await prisma.flavorOption.update({
+    where: { id },
+    data: { ...rest, ...scope },
+  });
   return NextResponse.json(flavor);
 }
 

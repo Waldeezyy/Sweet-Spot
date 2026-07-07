@@ -27,7 +27,6 @@ type Props = {
   categorySlug: string;
   categoryFormType: CategoryFormType;
   flavors: string[];
-  flavorGroups?: { name: string; flavorGroup: string | null }[];
   toppings: string[];
   addOnOptions: MenuAddOn[];
   treatTypes: string[];
@@ -38,7 +37,6 @@ export function AddToOrderButton({
   categorySlug,
   categoryFormType,
   flavors,
-  flavorGroups,
   toppings,
   addOnOptions,
   treatTypes,
@@ -113,7 +111,6 @@ export function AddToOrderButton({
         productName={product.name}
         orderType={product.orderType}
         flavors={flavors}
-        flavorGroups={flavorGroups}
         onSubmit={(data) => {
           addItem({
             id: crypto.randomUUID(),

@@ -4,7 +4,6 @@ import { useState } from "react";
 import type { OrderType } from "@prisma/client";
 import { formatCents } from "@/lib/utils";
 import {
-  getCupcakeFlavors,
   getCupcakePriceCents,
   CUPCAKE_PRICING,
 } from "@/lib/cake-pricing";
@@ -14,7 +13,6 @@ type Props = {
   productName: string;
   orderType: OrderType;
   flavors: string[];
-  flavorGroups?: { name: string; flavorGroup: string | null }[];
   onSubmit: (data: {
     flavor: string;
     frosting: string;
@@ -27,8 +25,8 @@ type Props = {
   onCancel: () => void;
 };
 
-export function CupcakeForm({ productSlug, productName, orderType, flavors, flavorGroups, onSubmit, onCancel }: Props) {
-  const flavorOptions = getCupcakeFlavors(productSlug, flavors, flavorGroups);
+export function CupcakeForm({ productSlug, productName, orderType, flavors, onSubmit, onCancel }: Props) {
+  const flavorOptions = flavors;
   const [flavor, setFlavor] = useState(flavorOptions[0] ?? "");
   const [frosting, setFrosting] = useState("Vanilla buttercream");
   const [dozenCount, setDozenCount] = useState<1 | 2>(1);

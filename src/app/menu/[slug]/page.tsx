@@ -12,7 +12,7 @@ import {
   isRoundCakeCategory,
   isSheetCakeCategory,
 } from "@/lib/cake-pricing";
-import { getActiveAddOns, getActiveTreatTypes } from "@/lib/menu-options";
+import { getActiveAddOns, getActiveTreatTypes, filterFlavorsForProduct, filterAddOnsForProduct, filterTreatTypesForProduct } from "@/lib/menu-options";
 
 export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -32,6 +32,10 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
     getActiveAddOns(),
     getActiveTreatTypes(),
   ]);
+
+  const productFlavors = filterFlavorsForProduct(flavors, product.category.slug, product.slug);
+  const productAddOns = filterAddOnsForProduct(addOnOptions, product.category.slug, product.slug);
+  const productTreatTypes = filterTreatTypesForProduct(treatTypes, product.category.slug, product.slug);
 
   const cupcakePricing = isCupcakeCategory(product.category.slug) ? CUPCAKE_PRICING[product.slug] : null;
   const sheetInfo = isSheetCakeCategory(product.category.slug) ? SHEET_CAKE_INFO[product.slug] : null;
@@ -96,7 +100,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           <div className="mt-4 text-sm text-[var(--warm-gray)]">
             <p className="font-medium">Optional add-ons:</p>
             <ul className="mt-1 list-inside list-disc">
-              {addOnOptions.map((a) => (
+              {productAddOns.map((a) => (
                 <li key={a.slug}>{a.name} ({a.priceLabel})</li>
               ))}
             </ul>
@@ -136,11 +140,10 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           }}
           categorySlug={product.category.slug}
           categoryFormType={product.category.formType}
-          flavors={flavors.map((f) => f.name)}
-          flavorGroups={flavors.map((f) => ({ name: f.name, flavorGroup: f.flavorGroup }))}
+          flavors={productFlavors}
           toppings={toppings.map((t) => t.name)}
-          addOnOptions={addOnOptions}
-          treatTypes={treatTypes}
+          addOnOptions={productAddOns}
+          treatTypes={productTreatTypes}
         />
       </div>
     </div>

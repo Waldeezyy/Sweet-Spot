@@ -175,18 +175,23 @@ export async function seedDatabase() {
 
   for (let i = 0; i < flavors.length; i++) {
     const name = flavors[i];
-    let flavorGroup: string | null = null;
-    if (STANDARD_FLAVORS.includes(name)) flavorGroup = "standard";
-    else if (SPECIALTY_FLAVORS.includes(name)) flavorGroup = "specialty";
-    await prisma.flavorOption.create({ data: { name, sortOrder: i, flavorGroup } });
+    let productSlugs: string[] = [];
+    if (STANDARD_FLAVORS.includes(name)) productSlugs = ["standard-cupcakes"];
+    else if (SPECIALTY_FLAVORS.includes(name)) productSlugs = ["specialty-cupcakes"];
+    await prisma.flavorOption.create({ data: { name, sortOrder: i, productSlugs } });
   }
 
+  const cakeCategorySlugs = ["round-cakes", "sheet-cakes"];
   for (const addOn of ADD_ON_SEED) {
-    await prisma.addOnOption.create({ data: addOn });
+    await prisma.addOnOption.create({
+      data: { ...addOn, categorySlugs: cakeCategorySlugs },
+    });
   }
 
   for (let i = 0; i < TREAT_TYPE_SEED.length; i++) {
-    await prisma.treatTypeOption.create({ data: { name: TREAT_TYPE_SEED[i], sortOrder: i } });
+    await prisma.treatTypeOption.create({
+      data: { name: TREAT_TYPE_SEED[i], sortOrder: i, categorySlugs: ["party-packages"] },
+    });
   }
 
   for (let i = 0; i < toppings.length; i++) {
@@ -248,28 +253,51 @@ export async function ensureMenuCatalogPatches() {
     await prisma.category.updateMany({ where: { slug }, data: { formType } });
   }
 
+  const cakeCategorySlugs = ["round-cakes", "sheet-cakes"];
+
   for (const addOn of ADD_ON_SEED) {
     await prisma.addOnOption.upsert({
       where: { slug: addOn.slug },
-      create: addOn,
-      update: { name: addOn.name, priceCents: addOn.priceCents, priceLabel: addOn.priceLabel, sortOrder: addOn.sortOrder },
+      create: { ...addOn, categorySlugs: cakeCategorySlugs },
+      update: {
+        name: addOn.name,
+        priceCents: addOn.priceCents,
+        priceLabel: addOn.priceLabel,
+        sortOrder: addOn.sortOrder,
+        categorySlugs: cakeCategorySlugs,
+      },
     });
   }
 
   for (let i = 0; i < TREAT_TYPE_SEED.length; i++) {
     await prisma.treatTypeOption.upsert({
       where: { name: TREAT_TYPE_SEED[i] },
-      create: { name: TREAT_TYPE_SEED[i], sortOrder: i },
-      update: { sortOrder: i },
+      create: { name: TREAT_TYPE_SEED[i], sortOrder: i, categorySlugs: ["party-packages"] },
+      update: { sortOrder: i, categorySlugs: ["party-packages"] },
     });
   }
 
   for (const name of STANDARD_FLAVORS) {
-    await prisma.flavorOption.updateMany({ where: { name }, data: { flavorGroup: "standard" } });
+    await prisma.flavorOption.updateMany({
+      where: { name },
+      data: { productSlugs: ["standard-cupcakes"], categorySlugs: [] },
+    });
   }
   for (const name of SPECIALTY_FLAVORS) {
-    await prisma.flavorOption.updateMany({ where: { name }, data: { flavorGroup: "specialty" } });
+    await prisma.flavorOption.updateMany({
+      where: { name },
+      data: { productSlugs: ["specialty-cupcakes"], categorySlugs: [] },
+    });
   }
+
+  await prisma.flavorOption.updateMany({
+    where: { flavorGroup: "standard" },
+    data: { productSlugs: ["standard-cupcakes"], categorySlugs: [], flavorGroup: null },
+  });
+  await prisma.flavorOption.updateMany({
+    where: { flavorGroup: "specialty" },
+    data: { productSlugs: ["specialty-cupcakes"], categorySlugs: [], flavorGroup: null },
+  });
 }
 
 /** Patches party package products on every seed — safe for existing databases. */
