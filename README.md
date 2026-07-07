@@ -39,15 +39,19 @@ Custom bakery website for B's Sweet Spot — made-to-order cakes and treats in D
 ## Railway Deployment
 
 1. Create a Railway project and connect to GitHub repo `Waldeezyy/Sweet-Spot`
-2. Add the **PostgreSQL** plugin
-3. Set environment variables from `.env.example` in Railway dashboard
+2. **Add PostgreSQL** (required — the app will not start without it):
+   - In your Railway project, click **+ New** → **Database** → **PostgreSQL**
+   - Open your **web service** (Sweet-Spot) → **Variables** tab
+   - Click **Add Reference** → select the Postgres service → choose **`DATABASE_URL`**
+   - Railway injects the connection string automatically — do not paste a fake value
+3. Set the remaining environment variables from `.env.example` in the web service Variables tab
 4. Railway auto-deploys on push to `main`
 
 ### Required Railway env vars
 
 | Variable | Description |
 |---|---|
-| `DATABASE_URL` | Auto-set by Postgres plugin |
+| `DATABASE_URL` | **Reference from Postgres service** (see step 2 above) |
 | `NEXT_PUBLIC_SITE_URL` | Your Railway URL or custom domain |
 | `AUTH_SECRET` | Random 32+ char string |
 | `AUTH_URL` | Same as `NEXT_PUBLIC_SITE_URL` |
@@ -59,7 +63,8 @@ Custom bakery website for B's Sweet Spot — made-to-order cakes and treats in D
 
 ### First deploy
 
-After first deploy, run seed via Railway shell:
+After the first successful deploy (once `DATABASE_URL` is linked), open the Railway shell for your **web service** and run:
+
 ```bash
 npm run db:seed
 ```
