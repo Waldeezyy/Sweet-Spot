@@ -15,5 +15,8 @@ fi
 echo "Syncing database schema..."
 npx prisma db push
 
+echo "Seeding database if empty..."
+npx tsx prisma/seed.ts
+
 echo "Starting app..."
 exec npm start

@@ -15,7 +15,10 @@ function LoginForm() {
         <p className="mt-4 text-[var(--warm-gray)]">Check your email for a sign-in link.</p>
       ) : (
         <>
-          <p className="mt-2 text-[var(--warm-gray)]">Enter your email to receive a magic link.</p>
+          <p className="mt-2 text-[var(--warm-gray)]">Enter the admin email to receive a magic link.</p>
+          <p className="mt-1 text-xs text-[var(--warm-gray)]">
+            Only the email set in ADMIN_EMAIL can sign in. Requires RESEND_API_KEY on the server.
+          </p>
           <form
             className="card mt-6 space-y-4"
             onSubmit={(e) => {
