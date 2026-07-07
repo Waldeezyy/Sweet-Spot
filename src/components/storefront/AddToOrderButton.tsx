@@ -2,15 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { OrderType } from "@prisma/client";
+import type { OrderType, CategoryFormType } from "@prisma/client";
 import { useCart } from "@/components/storefront/CartProvider";
-import { formatPartySelections, getPartyPackageConfig, isPartyPackage } from "@/lib/party-packages";
-import {
-  formatAddOnNames,
-  isCupcakeCategory,
-  isRoundCakeCategory,
-  isSheetCakeCategory,
-} from "@/lib/cake-pricing";
+import { formatPartySelections, getPartyPackageConfig } from "@/lib/party-packages";
+import type { MenuAddOn } from "@/lib/menu-options";
+import { formatAddOnNamesFromList } from "@/lib/menu-options";
 import { PartyPackageForm } from "@/components/storefront/PartyPackageForm";
 import { CupcakeForm } from "@/components/storefront/CupcakeForm";
 import { RoundCakeForm } from "@/components/storefront/RoundCakeForm";
@@ -29,20 +25,33 @@ type Props = {
     allowWriting: boolean;
   };
   categorySlug: string;
+  categoryFormType: CategoryFormType;
   flavors: string[];
+  flavorGroups?: { name: string; flavorGroup: string | null }[];
   toppings: string[];
+  addOnOptions: MenuAddOn[];
+  treatTypes: string[];
 };
 
-export function AddToOrderButton({ product, categorySlug, flavors, toppings }: Props) {
+export function AddToOrderButton({
+  product,
+  categorySlug,
+  categoryFormType,
+  flavors,
+  flavorGroups,
+  toppings,
+  addOnOptions,
+  treatTypes,
+}: Props) {
   const router = useRouter();
   const { addItem } = useCart();
   const [open, setOpen] = useState(false);
 
-  const partyMode = isPartyPackage(categorySlug);
+  const partyMode = categoryFormType === "PARTY_PACKAGE";
   const partyConfig = partyMode ? getPartyPackageConfig(product.slug) : null;
-  const cupcakeMode = isCupcakeCategory(categorySlug);
-  const roundCakeMode = isRoundCakeCategory(categorySlug);
-  const sheetCakeMode = isSheetCakeCategory(categorySlug);
+  const cupcakeMode = categoryFormType === "CUPCAKE";
+  const roundCakeMode = categoryFormType === "ROUND_CAKE";
+  const sheetCakeMode = categoryFormType === "SHEET_CAKE";
 
   function handleAddParty(data: {
     treatTypes: string[];
@@ -81,11 +90,16 @@ export function AddToOrderButton({ product, categorySlug, flavors, toppings }: P
   }
 
   if (partyMode && partyConfig) {
+    const config =
+      product.slug === "your-party-package"
+        ? { ...partyConfig, maxTreatTypes: treatTypes.length }
+        : partyConfig;
     return (
       <PartyPackageForm
         productName={product.name}
         orderType={product.orderType}
-        config={partyConfig}
+        config={config}
+        treatTypes={treatTypes}
         onSubmit={handleAddParty}
         onCancel={() => setOpen(false)}
       />
@@ -99,6 +113,7 @@ export function AddToOrderButton({ product, categorySlug, flavors, toppings }: P
         productName={product.name}
         orderType={product.orderType}
         flavors={flavors}
+        flavorGroups={flavorGroups}
         onSubmit={(data) => {
           addItem({
             id: crypto.randomUUID(),
@@ -129,7 +144,9 @@ export function AddToOrderButton({ product, categorySlug, flavors, toppings }: P
         productSlug={product.slug}
         productName={product.name}
         flavors={flavors}
+        addOnOptions={addOnOptions}
         onSubmit={(data) => {
+          const addOnNames = formatAddOnNamesFromList(data.addOns, addOnOptions);
           addItem({
             id: crypto.randomUUID(),
             productId: product.id,
@@ -142,8 +159,8 @@ export function AddToOrderButton({ product, categorySlug, flavors, toppings }: P
             flavor: data.flavor,
             frosting: data.frosting,
             cakeSize: data.cakeSize,
-            toppings: formatAddOnNames(data.addOns),
-            addOns: formatAddOnNames(data.addOns),
+            toppings: addOnNames,
+            addOns: addOnNames,
             writing: data.writing || undefined,
             designNotes: data.designNotes || undefined,
             allergyNotes: data.allergyNotes || undefined,
@@ -162,7 +179,9 @@ export function AddToOrderButton({ product, categorySlug, flavors, toppings }: P
         productSlug={product.slug}
         productName={product.name}
         flavors={flavors}
+        addOnOptions={addOnOptions}
         onSubmit={(data) => {
+          const addOnNames = formatAddOnNamesFromList(data.addOns, addOnOptions);
           addItem({
             id: crypto.randomUUID(),
             productId: product.id,
@@ -174,8 +193,8 @@ export function AddToOrderButton({ product, categorySlug, flavors, toppings }: P
             quantity: 1,
             flavor: data.flavor,
             frosting: data.frosting,
-            toppings: formatAddOnNames(data.addOns),
-            addOns: formatAddOnNames(data.addOns),
+            toppings: addOnNames,
+            addOns: addOnNames,
             writing: data.writing || undefined,
             designNotes: data.designNotes || undefined,
             allergyNotes: data.allergyNotes || undefined,

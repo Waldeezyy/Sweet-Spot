@@ -60,9 +60,20 @@ export function isCakeCategory(categorySlug: string): boolean {
   return isCupcakeCategory(categorySlug) || isRoundCakeCategory(categorySlug) || isSheetCakeCategory(categorySlug);
 }
 
-export function getCupcakeFlavors(productSlug: string, allFlavors: string[]): string[] {
-  if (productSlug === "standard-cupcakes") return [...STANDARD_CUPCAKE_FLAVORS];
-  if (productSlug === "specialty-cupcakes") return [...SPECIALTY_CUPCAKE_FLAVORS];
+export function getCupcakeFlavors(
+  productSlug: string,
+  allFlavors: string[],
+  grouped?: { name: string; flavorGroup: string | null }[]
+): string[] {
+  const source = grouped ?? allFlavors.map((name) => ({ name, flavorGroup: null }));
+  if (productSlug === "standard-cupcakes") {
+    const std = source.filter((f) => f.flavorGroup === "standard").map((f) => f.name);
+    return std.length ? std : [...STANDARD_CUPCAKE_FLAVORS];
+  }
+  if (productSlug === "specialty-cupcakes") {
+    const spec = source.filter((f) => f.flavorGroup === "specialty").map((f) => f.name);
+    return spec.length ? spec : [...SPECIALTY_CUPCAKE_FLAVORS];
+  }
   return allFlavors;
 }
 

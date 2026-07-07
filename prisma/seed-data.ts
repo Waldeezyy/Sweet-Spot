@@ -112,13 +112,27 @@ const products: ProductSeed[] = [
   { name: "Premium Cake Cookies", slug: "premium-cake-cookies", description: "Any flavor, any toppings. Premium decorated cake cookies.", basePriceCents: 4000, categorySlug: "cookies", sortOrder: 16, orderType: "STANDARD" },
 ];
 
-const categories = [
-  { name: "Sheet Cakes", slug: "sheet-cakes", sortOrder: 1 },
-  { name: "Round Cakes", slug: "round-cakes", sortOrder: 2 },
-  { name: "Cupcakes", slug: "cupcakes", sortOrder: 3 },
-  { name: "Party Packages", slug: "party-packages", sortOrder: 4 },
-  { name: "Mini Cakes", slug: "mini-cakes", sortOrder: 5 },
-  { name: "Cake Cookies", slug: "cookies", sortOrder: 6 },
+const categories: { name: string; slug: string; sortOrder: number; formType: "SIMPLE" | "CUPCAKE" | "ROUND_CAKE" | "SHEET_CAKE" | "PARTY_PACKAGE" }[] = [
+  { name: "Sheet Cakes", slug: "sheet-cakes", sortOrder: 1, formType: "SHEET_CAKE" },
+  { name: "Round Cakes", slug: "round-cakes", sortOrder: 2, formType: "ROUND_CAKE" },
+  { name: "Cupcakes", slug: "cupcakes", sortOrder: 3, formType: "CUPCAKE" },
+  { name: "Party Packages", slug: "party-packages", sortOrder: 4, formType: "PARTY_PACKAGE" },
+  { name: "Mini Cakes", slug: "mini-cakes", sortOrder: 5, formType: "SIMPLE" },
+  { name: "Cake Cookies", slug: "cookies", sortOrder: 6, formType: "SIMPLE" },
+];
+
+const STANDARD_FLAVORS = ["Vanilla", "Chocolate", "Marble"];
+const SPECIALTY_FLAVORS = ["Strawberry", "Red Velvet", "Lemon", "Funfetti", "Oreo", "Peach", "Blueberry"];
+
+const ADD_ON_SEED = [
+  { slug: "filling", name: "Filling (strawberry, cream cheese, etc.)", priceCents: 750, priceLabel: "+$5–$10", sortOrder: 0 },
+  { slug: "edible-image", name: "Edible image", priceCents: 1000, priceLabel: "+$10", sortOrder: 1 },
+  { slug: "cake-topper", name: "Cake topper", priceCents: 1000, priceLabel: "+$5–$15", sortOrder: 2 },
+  { slug: "extra-design", name: "Extra detailed design", priceCents: 1000, priceLabel: "+$10+", sortOrder: 3 },
+];
+
+const TREAT_TYPE_SEED = [
+  "Oreos", "Rice Krispies", "Cake Pops", "Pretzels", "Wafer Cookies", "Marshmallows", "Strawberries", "Other (describe in notes)",
 ];
 
 export async function seedDatabase() {
@@ -126,6 +140,7 @@ export async function seedDatabase() {
   if (existing > 0) {
     console.log("Database already seeded, skipping.");
     await ensurePartyPackageSettings();
+    await ensureMenuCatalogPatches();
     return;
   }
 
@@ -159,7 +174,19 @@ export async function seedDatabase() {
   }
 
   for (let i = 0; i < flavors.length; i++) {
-    await prisma.flavorOption.create({ data: { name: flavors[i], sortOrder: i } });
+    const name = flavors[i];
+    let flavorGroup: string | null = null;
+    if (STANDARD_FLAVORS.includes(name)) flavorGroup = "standard";
+    else if (SPECIALTY_FLAVORS.includes(name)) flavorGroup = "specialty";
+    await prisma.flavorOption.create({ data: { name, sortOrder: i, flavorGroup } });
+  }
+
+  for (const addOn of ADD_ON_SEED) {
+    await prisma.addOnOption.create({ data: addOn });
+  }
+
+  for (let i = 0; i < TREAT_TYPE_SEED.length; i++) {
+    await prisma.treatTypeOption.create({ data: { name: TREAT_TYPE_SEED[i], sortOrder: i } });
   }
 
   for (let i = 0; i < toppings.length; i++) {
@@ -203,6 +230,46 @@ All cakes are made to order — fresh according to customer orders. Order in bul
 
   console.log("Database seeded successfully.");
   await ensurePartyPackageSettings();
+  await ensureMenuCatalogPatches();
+}
+
+const CATEGORY_FORM_TYPES: Record<string, "SIMPLE" | "CUPCAKE" | "ROUND_CAKE" | "SHEET_CAKE" | "PARTY_PACKAGE"> = {
+  "sheet-cakes": "SHEET_CAKE",
+  "round-cakes": "ROUND_CAKE",
+  cupcakes: "CUPCAKE",
+  "party-packages": "PARTY_PACKAGE",
+  "mini-cakes": "SIMPLE",
+  cookies: "SIMPLE",
+};
+
+/** Patches categories, add-ons, treat types, flavor groups on every seed. */
+export async function ensureMenuCatalogPatches() {
+  for (const [slug, formType] of Object.entries(CATEGORY_FORM_TYPES)) {
+    await prisma.category.updateMany({ where: { slug }, data: { formType } });
+  }
+
+  for (const addOn of ADD_ON_SEED) {
+    await prisma.addOnOption.upsert({
+      where: { slug: addOn.slug },
+      create: addOn,
+      update: { name: addOn.name, priceCents: addOn.priceCents, priceLabel: addOn.priceLabel, sortOrder: addOn.sortOrder },
+    });
+  }
+
+  for (let i = 0; i < TREAT_TYPE_SEED.length; i++) {
+    await prisma.treatTypeOption.upsert({
+      where: { name: TREAT_TYPE_SEED[i] },
+      create: { name: TREAT_TYPE_SEED[i], sortOrder: i },
+      update: { sortOrder: i },
+    });
+  }
+
+  for (const name of STANDARD_FLAVORS) {
+    await prisma.flavorOption.updateMany({ where: { name }, data: { flavorGroup: "standard" } });
+  }
+  for (const name of SPECIALTY_FLAVORS) {
+    await prisma.flavorOption.updateMany({ where: { name }, data: { flavorGroup: "specialty" } });
+  }
 }
 
 /** Patches party package products on every seed — safe for existing databases. */

@@ -15,6 +15,7 @@ export function Footer() {
             <li><Link href="/menu" className="hover:text-[var(--chocolate)]">Menu</Link></li>
             <li><Link href="/custom-order" className="hover:text-[var(--chocolate)]">Custom Orders</Link></li>
             <li><Link href="/order" className="hover:text-[var(--chocolate)]">Place an Order</Link></li>
+            <li><Link href="/order/track" className="hover:text-[var(--chocolate)]">Track Order</Link></li>
           </ul>
         </div>
         <div>

@@ -3,16 +3,16 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { formatCents } from "@/lib/utils";
 import { AddToOrderButton } from "@/components/storefront/AddToOrderButton";
-import { getPartyPackageConfig, isPartyPackage } from "@/lib/party-packages";
+import { getPartyPackageConfig } from "@/lib/party-packages";
 import {
   CUPCAKE_PRICING,
   ROUND_CAKE_SIZES,
   SHEET_CAKE_INFO,
-  ADD_ONS,
   isCupcakeCategory,
   isRoundCakeCategory,
   isSheetCakeCategory,
 } from "@/lib/cake-pricing";
+import { getActiveAddOns, getActiveTreatTypes } from "@/lib/menu-options";
 
 export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -22,13 +22,15 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   });
   if (!product) notFound();
 
-  const partyConfig = isPartyPackage(product.category.slug)
+  const partyConfig = product.category.formType === "PARTY_PACKAGE"
     ? getPartyPackageConfig(product.slug)
     : null;
 
-  const [flavors, toppings] = await Promise.all([
+  const [flavors, toppings, addOnOptions, treatTypes] = await Promise.all([
     prisma.flavorOption.findMany({ where: { isActive: true }, orderBy: { sortOrder: "asc" } }),
     prisma.toppingOption.findMany({ where: { isActive: true }, orderBy: { sortOrder: "asc" } }),
+    getActiveAddOns(),
+    getActiveTreatTypes(),
   ]);
 
   const cupcakePricing = isCupcakeCategory(product.category.slug) ? CUPCAKE_PRICING[product.slug] : null;
@@ -90,12 +92,12 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           </p>
         )}
 
-        {(isRoundCakeCategory(product.category.slug) || isSheetCakeCategory(product.category.slug)) && (
+        {(product.category.formType === "ROUND_CAKE" || product.category.formType === "SHEET_CAKE") && (
           <div className="mt-4 text-sm text-[var(--warm-gray)]">
             <p className="font-medium">Optional add-ons:</p>
             <ul className="mt-1 list-inside list-disc">
-              {ADD_ONS.map((a) => (
-                <li key={a.id}>{a.name} ({a.priceLabel})</li>
+              {addOnOptions.map((a) => (
+                <li key={a.slug}>{a.name} ({a.priceLabel})</li>
               ))}
             </ul>
           </div>
@@ -133,8 +135,12 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
             allowWriting: product.allowWriting,
           }}
           categorySlug={product.category.slug}
+          categoryFormType={product.category.formType}
           flavors={flavors.map((f) => f.name)}
+          flavorGroups={flavors.map((f) => ({ name: f.name, flavorGroup: f.flavorGroup }))}
           toppings={toppings.map((t) => t.name)}
+          addOnOptions={addOnOptions}
+          treatTypes={treatTypes}
         />
       </div>
     </div>

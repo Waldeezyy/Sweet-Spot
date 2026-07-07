@@ -30,7 +30,17 @@ export default async function OrderSuccessPage({
           Balance due at pickup/delivery: {formatCents(order.balanceDueCents)}
         </p>
       )}
-      <Link href="/" className="btn-primary mt-8 inline-flex">Back to Home</Link>
+      <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+        {order?.trackingToken && (
+          <Link href={`/order/status/${order.trackingToken}`} className="btn-primary inline-flex">
+            Track your order
+          </Link>
+        )}
+        <Link href="/order/track" className="btn-secondary inline-flex">
+          Look up later
+        </Link>
+        <Link href="/" className="text-sm text-[var(--rose)] hover:underline">Back to home</Link>
+      </div>
     </div>
   );
 }

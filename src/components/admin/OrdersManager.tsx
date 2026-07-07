@@ -4,7 +4,8 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { formatCents } from "@/lib/utils";
 import { format } from "date-fns";
-import { formatPartyItemSummary, isPartyProductSlug } from "@/lib/party-packages";
+import { formatOrderItemLine } from "@/lib/order-item-display";
+import { STATUS_LABELS } from "@/lib/order-tracking";
 
 type OrderItem = {
   productName: string;
@@ -12,12 +13,14 @@ type OrderItem = {
   quantity: number;
   flavor: string | null;
   frosting: string | null;
+  toppings: string | null;
   designNotes: string | null;
 };
 
 type Order = {
   id: string;
   orderNumber: string;
+  trackingToken: string;
   status: string;
   customerName: string;
   customerEmail: string;
@@ -30,18 +33,6 @@ type Order = {
   items: OrderItem[];
 };
 
-function formatOrderItemLine(item: OrderItem): string {
-  if (item.productSlug && isPartyProductSlug(item.productSlug)) {
-    const details = formatPartyItemSummary(item);
-    return `${item.productName} × ${item.quantity}${details.length ? ` — ${details.join(" · ")}` : ""}`;
-  }
-  const parts = [item.productName + ` × ${item.quantity}`];
-  if (item.flavor) parts.push(`Flavor: ${item.flavor}`);
-  if (item.frosting) parts.push(`Frosting: ${item.frosting}`);
-  if (item.designNotes) parts.push(item.designNotes);
-  return parts.join(" — ");
-}
-
 const statusActions: Record<string, { label: string; next: string }[]> = {
   PENDING_REVIEW: [{ label: "Confirm order", next: "CONFIRMED" }],
   CONFIRMED: [{ label: "Start making", next: "IN_PROGRESS" }],
@@ -53,24 +44,56 @@ export function OrdersManager({ orders: initial }: { orders: Order[] }) {
   const router = useRouter();
   const [selected, setSelected] = useState<Order | null>(null);
   const [finalPrice, setFinalPrice] = useState("");
+  const [estimatedReady, setEstimatedReady] = useState("");
+  const [toast, setToast] = useState("");
 
-  async function updateStatus(id: string, status: string, finalTotalCents?: number) {
+  function notify(msg: string) {
+    setToast(msg);
+    setTimeout(() => setToast(""), 4000);
+  }
+
+  async function updateStatus(
+    id: string,
+    status: string,
+    options?: { finalTotalCents?: number; estimatedReadyAt?: string }
+  ) {
     await fetch(`/api/admin/orders/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status, finalTotalCents }),
+      body: JSON.stringify({ status, ...options }),
     });
+    notify("Status updated — customer will receive a detailed email if Resend is configured.");
     router.refresh();
     setSelected(null);
+    setEstimatedReady("");
+  }
+
+  function defaultEstimatedReady(scheduledDate: string): string {
+    const d = new Date(scheduledDate);
+    d.setHours(14, 0, 0, 0);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  function openOrder(order: Order) {
+    setSelected(order);
+    setEstimatedReady(defaultEstimatedReady(order.scheduledDate));
+  }
+
+  function copyTrackLink(order: Order) {
+    const url = `${window.location.origin}/order/status/${order.trackingToken}`;
+    navigator.clipboard.writeText(url);
+    notify("Track link copied — paste in Facebook DM or text.");
   }
 
   return (
     <div className="mt-8 space-y-4">
+      {toast && <div className="rounded-xl bg-[var(--sage)]/20 p-3 text-sm">{toast}</div>}
       {initial.map((o) => (
         <div
           key={o.id}
           className={`card cursor-pointer ${o.status === "PENDING_REVIEW" ? "border-yellow-400 border-2" : ""}`}
-          onClick={() => setSelected(o)}
+          onClick={() => openOrder(o)}
         >
           <div className="flex flex-wrap justify-between gap-2">
             <div>
@@ -78,7 +101,9 @@ export function OrdersManager({ orders: initial }: { orders: Order[] }) {
               <p className="text-sm text-[var(--warm-gray)]">{o.customerName} · {format(new Date(o.scheduledDate), "MMM d, yyyy")}</p>
             </div>
             <div className="text-right">
-              <span className="rounded-full bg-[var(--blush)] px-2 py-1 text-xs">{o.status.replace(/_/g, " ")}</span>
+              <span className="rounded-full bg-[var(--blush)] px-2 py-1 text-xs">
+                {STATUS_LABELS[o.status as keyof typeof STATUS_LABELS] ?? o.status.replace(/_/g, " ")}
+              </span>
               <p className="mt-1 font-semibold">{formatCents(o.finalTotalCents ?? o.totalCents)}</p>
             </div>
           </div>
@@ -95,6 +120,13 @@ export function OrdersManager({ orders: initial }: { orders: Order[] }) {
                 ? `Paid in full: ${formatCents(selected.depositCents)}`
                 : `Deposit: ${formatCents(selected.depositCents)} · Balance due: ${formatCents(selected.balanceDueCents)}`}
             </p>
+            <button
+              type="button"
+              onClick={() => copyTrackLink(selected)}
+              className="btn-secondary mt-3 text-sm"
+            >
+              Copy track link for customer
+            </button>
             <ul className="mt-4 space-y-2 text-sm">
               {selected.items.map((i, idx) => (
                 <li key={idx}>{formatOrderItemLine(i)}</li>
@@ -107,14 +139,45 @@ export function OrdersManager({ orders: initial }: { orders: Order[] }) {
                 <button
                   type="button"
                   className="btn-primary mt-2 w-full"
-                  onClick={() => updateStatus(selected.id, "CONFIRMED", Math.round(parseFloat(finalPrice || String(selected.totalCents / 100)) * 100))}
+                  onClick={() =>
+                    updateStatus(selected.id, "CONFIRMED", {
+                      finalTotalCents: Math.round(parseFloat(finalPrice || String(selected.totalCents / 100)) * 100),
+                    })
+                  }
                 >
                   Confirm order
                 </button>
               </div>
             )}
+            {selected.status === "CONFIRMED" && (
+              <div className="mt-4">
+                <label className="label">Estimated ready time</label>
+                <input
+                  type="datetime-local"
+                  value={estimatedReady}
+                  onChange={(e) => setEstimatedReady(e.target.value)}
+                  className="input"
+                />
+                <p className="mt-1 text-xs text-[var(--warm-gray)]">
+                  Customers receive this in their &quot;We&apos;re making your order&quot; email.
+                </p>
+                <button
+                  type="button"
+                  className="btn-primary mt-2 w-full"
+                  onClick={() =>
+                    updateStatus(selected.id, "IN_PROGRESS", {
+                      estimatedReadyAt: new Date(estimatedReady).toISOString(),
+                    })
+                  }
+                >
+                  Start making
+                </button>
+              </div>
+            )}
             <div className="mt-4 flex flex-wrap gap-2">
-              {(statusActions[selected.status] ?? []).map((a) => (
+              {(statusActions[selected.status] ?? [])
+                .filter((a) => a.next !== "IN_PROGRESS")
+                .map((a) => (
                 <button key={a.next} type="button" onClick={() => updateStatus(selected.id, a.next)} className="btn-secondary text-sm">
                   {a.label}
                 </button>

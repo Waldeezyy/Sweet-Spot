@@ -4,6 +4,7 @@ import { formatCents } from "@/lib/utils";
 
 export default async function MenuPage() {
   const categories = await prisma.category.findMany({
+    where: { isActive: true },
     orderBy: { sortOrder: "asc" },
     include: {
       products: { where: { isActive: true }, orderBy: { sortOrder: "asc" } },

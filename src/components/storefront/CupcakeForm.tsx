@@ -14,6 +14,7 @@ type Props = {
   productName: string;
   orderType: OrderType;
   flavors: string[];
+  flavorGroups?: { name: string; flavorGroup: string | null }[];
   onSubmit: (data: {
     flavor: string;
     frosting: string;
@@ -26,8 +27,8 @@ type Props = {
   onCancel: () => void;
 };
 
-export function CupcakeForm({ productSlug, productName, orderType, flavors, onSubmit, onCancel }: Props) {
-  const flavorOptions = getCupcakeFlavors(productSlug, flavors);
+export function CupcakeForm({ productSlug, productName, orderType, flavors, flavorGroups, onSubmit, onCancel }: Props) {
+  const flavorOptions = getCupcakeFlavors(productSlug, flavors, flavorGroups);
   const [flavor, setFlavor] = useState(flavorOptions[0] ?? "");
   const [frosting, setFrosting] = useState("Vanilla buttercream");
   const [dozenCount, setDozenCount] = useState<1 | 2>(1);

@@ -12,6 +12,12 @@ const schema = z.object({
   orderType: z.enum(["STANDARD", "SEMI_CUSTOM"]).optional(),
   categoryId: z.string(),
   isActive: z.boolean().optional(),
+  imageUrl: z.string().nullable().optional(),
+  sortOrder: z.number().int().optional(),
+  allowFlavor: z.boolean().optional(),
+  allowTopping: z.boolean().optional(),
+  allowFrosting: z.boolean().optional(),
+  allowWriting: z.boolean().optional(),
 });
 
 export async function POST(req: Request) {

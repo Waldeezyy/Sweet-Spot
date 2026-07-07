@@ -49,7 +49,7 @@ export default function CustomOrderPage() {
     return (
       <div className="mx-auto max-w-xl px-4 py-12 text-center">
         <h1 className="font-[family-name:var(--font-display)] text-3xl font-bold">Request Received!</h1>
-        <p className="mt-4 text-[var(--warm-gray)]">Brandy will review your request and send you a quote within 24 hours.</p>
+        <p className="mt-4 text-[var(--warm-gray)]">Brandy will review your request and send you a quote within 24 hours. You can pay online or arrange Venmo, Cash App, or cash after she contacts you.</p>
         <Link href="/" className="btn-primary mt-8 inline-flex">Back to Home</Link>
       </div>
     );

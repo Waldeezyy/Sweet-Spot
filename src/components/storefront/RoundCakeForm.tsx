@@ -2,24 +2,24 @@
 
 import { useState } from "react";
 import { formatCents } from "@/lib/utils";
+import type { MenuAddOn } from "@/lib/menu-options";
+import { sumAddOnCentsFromList } from "@/lib/menu-options";
 import {
-  ADD_ONS,
   ROUND_CAKE_SIZES,
-  type AddOnId,
   type RoundCakeSizeId,
   getRoundCakePriceCents,
-  sumAddOnCents,
 } from "@/lib/cake-pricing";
 
 type Props = {
   productSlug: string;
   productName: string;
   flavors: string[];
+  addOnOptions: MenuAddOn[];
   onSubmit: (data: {
     flavor: string;
     frosting: string;
     cakeSize: RoundCakeSizeId;
-    addOns: AddOnId[];
+    addOns: string[];
     writing: string;
     designNotes: string;
     allergyNotes: string;
@@ -29,24 +29,24 @@ type Props = {
   onCancel: () => void;
 };
 
-export function RoundCakeForm({ productSlug, productName, flavors, onSubmit, onCancel }: Props) {
+export function RoundCakeForm({ productSlug, productName, flavors, addOnOptions, onSubmit, onCancel }: Props) {
   const isCustom = productSlug === "custom-round-cake";
   const [cakeSize, setCakeSize] = useState<RoundCakeSizeId>("6");
   const [flavor, setFlavor] = useState(flavors[0] ?? "");
   const [frosting, setFrosting] = useState("Buttercream");
-  const [selectedAddOns, setSelectedAddOns] = useState<AddOnId[]>([]);
+  const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
   const [writing, setWriting] = useState("");
   const [designNotes, setDesignNotes] = useState("");
   const [allergyNotes, setAllergyNotes] = useState("");
   const [error, setError] = useState("");
 
   const baseCents = getRoundCakePriceCents(cakeSize, isCustom);
-  const addOnCents = sumAddOnCents(selectedAddOns);
+  const addOnCents = sumAddOnCentsFromList(selectedAddOns, addOnOptions);
   const unitPriceCents = baseCents + addOnCents;
   const sizeInfo = ROUND_CAKE_SIZES.find((s) => s.id === cakeSize);
 
-  function toggleAddOn(id: AddOnId) {
-    setSelectedAddOns((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  function toggleAddOn(slug: string) {
+    setSelectedAddOns((prev) => (prev.includes(slug) ? prev.filter((x) => x !== slug) : [...prev, slug]));
   }
 
   function handleSubmit() {
@@ -125,17 +125,17 @@ export function RoundCakeForm({ productSlug, productName, flavors, onSubmit, onC
       <div>
         <label className="label">Add-ons (optional)</label>
         <div className="flex flex-wrap gap-2">
-          {ADD_ONS.map((addOn) => (
+          {addOnOptions.map((addOn) => (
             <label
-              key={addOn.id}
+              key={addOn.slug}
               className={`flex items-center gap-1 rounded-full border px-3 py-1 text-sm ${
-                selectedAddOns.includes(addOn.id) ? "border-[var(--chocolate)] bg-[var(--blush)]/30" : "border-[var(--blush)]"
+                selectedAddOns.includes(addOn.slug) ? "border-[var(--chocolate)] bg-[var(--blush)]/30" : "border-[var(--blush)]"
               }`}
             >
               <input
                 type="checkbox"
-                checked={selectedAddOns.includes(addOn.id)}
-                onChange={() => toggleAddOn(addOn.id)}
+                checked={selectedAddOns.includes(addOn.slug)}
+                onChange={() => toggleAddOn(addOn.slug)}
               />
               {addOn.name} <span className="text-[var(--warm-gray)]">({addOn.priceLabel})</span>
             </label>

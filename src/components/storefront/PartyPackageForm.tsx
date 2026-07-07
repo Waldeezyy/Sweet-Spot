@@ -3,12 +3,12 @@
 import { useState } from "react";
 import type { OrderType } from "@prisma/client";
 import type { PartyPackageConfig } from "@/lib/party-packages";
-import { PARTY_TREAT_TYPES } from "@/lib/party-packages";
 
 type Props = {
   productName: string;
   orderType: OrderType;
   config: PartyPackageConfig;
+  treatTypes: string[];
   onSubmit: (data: {
     treatTypes: string[];
     themeColors: string;
@@ -19,7 +19,7 @@ type Props = {
   onCancel: () => void;
 };
 
-export function PartyPackageForm({ productName, orderType, config, onSubmit, onCancel }: Props) {
+export function PartyPackageForm({ productName, orderType, config, treatTypes, onSubmit, onCancel }: Props) {
   const [selectedTreats, setSelectedTreats] = useState<string[]>([]);
   const [themeColors, setThemeColors] = useState("");
   const [designNotes, setDesignNotes] = useState("");
@@ -90,7 +90,7 @@ export function PartyPackageForm({ productName, orderType, config, onSubmit, onC
       <div>
         <label className="label">{treatLabel}</label>
         <div className="flex flex-wrap gap-2">
-          {PARTY_TREAT_TYPES.map((treat) => {
+          {treatTypes.map((treat) => {
             const selected = selectedTreats.includes(treat);
             const atLimit = !selected && selectedTreats.length >= config.maxTreatTypes;
             return (

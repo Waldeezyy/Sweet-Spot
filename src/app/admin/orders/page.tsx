@@ -19,6 +19,7 @@ export default async function AdminOrdersPage() {
         orders={orders.map((o) => ({
           id: o.id,
           orderNumber: o.orderNumber,
+          trackingToken: o.trackingToken,
           status: o.status,
           customerName: o.customerName,
           customerEmail: o.customerEmail,
@@ -34,6 +35,7 @@ export default async function AdminOrdersPage() {
             quantity: i.quantity,
             flavor: i.flavor,
             frosting: i.frosting,
+            toppings: i.toppings,
             designNotes: i.designNotes,
           })),
         }))}

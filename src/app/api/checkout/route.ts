@@ -6,6 +6,7 @@ import { getSiteUrl } from "@/lib/site-url";
 import { generateOrderNumber } from "@/lib/utils";
 import { hasSemiCustom, type CartItem } from "@/lib/cart";
 import { getPaymentPolicy, resolveCheckoutPayment } from "@/lib/payment-policy";
+import { sendOrderConfirmationFromOrder, sendAdminNewOrder } from "@/lib/email";
 
 const schema = z.object({
   items: z.array(z.any()),
@@ -82,17 +83,28 @@ export async function POST(req: Request) {
         })),
       },
     },
+    include: { items: true },
   });
 
   const chargeLabel = payment.paidInFull ? "Payment" : "Deposit";
 
   if (!stripe) {
-    await prisma.order.update({
+    const paid = await prisma.order.update({
       where: { id: order.id },
       data: {
         depositPaid: true,
         status: needsReview ? "PENDING_REVIEW" : "CONFIRMED",
       },
+      include: { items: true },
+    });
+    await sendOrderConfirmationFromOrder(paid, {
+      pendingReview: paid.status === "PENDING_REVIEW",
+    });
+    await sendAdminNewOrder({
+      orderNumber: paid.orderNumber,
+      customerName: paid.customerName,
+      totalCents: paid.totalCents,
+      pendingReview: paid.status === "PENDING_REVIEW",
     });
     return NextResponse.json({ url: `/order/success?order=${orderNumber}&demo=1` });
   }
@@ -120,6 +132,7 @@ export async function POST(req: Request) {
       orderId: order.id,
       orderNumber,
       paidInFull: payment.paidInFull ? "true" : "false",
+      paymentType: "deposit",
     },
     success_url: `${siteUrl}/order/success?order=${orderNumber}`,
     cancel_url: `${siteUrl}/order?cancelled=1`,

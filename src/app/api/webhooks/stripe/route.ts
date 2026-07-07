@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { prisma } from "@/lib/db";
 import { stripe } from "@/lib/stripe";
-import { sendOrderConfirmation, sendAdminNewOrder } from "@/lib/email";
-import { format } from "date-fns";
+import { sendOrderConfirmationFromOrder, sendAdminNewOrder } from "@/lib/email";
+import { convertQuoteToOrder } from "@/lib/quotes";
 
 export async function POST(req: Request) {
   if (!stripe) return NextResponse.json({ received: true });
@@ -26,33 +26,71 @@ export async function POST(req: Request) {
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
     const orderId = session.metadata?.orderId;
-    if (orderId) {
-      const existing = await prisma.order.findUnique({ where: { id: orderId } });
-      const order = await prisma.order.update({
-        where: { id: orderId },
-        data: {
-          depositPaid: true,
-          status: existing?.status === "PENDING_REVIEW" ? "PENDING_REVIEW" : "CONFIRMED",
-          stripePaymentIntent: session.payment_intent as string,
-        },
-      });
+    const quoteId = session.metadata?.quoteId;
 
-      await sendOrderConfirmation({
-        to: order.customerEmail,
-        orderNumber: order.orderNumber,
-        totalCents: order.totalCents,
-        depositCents: order.depositCents,
-        balanceDueCents: order.balanceDueCents,
-        scheduledDate: format(order.scheduledDate, "MMM d, yyyy"),
-        pendingReview: order.status === "PENDING_REVIEW",
-        paidInFull: order.paidInFull,
-      });
+    if (quoteId) {
+      const existing = await prisma.quoteRequest.findUnique({ where: { id: quoteId } });
+      if (existing && existing.status !== "CONVERTED") {
+        const settings = await prisma.shopSettings.findFirst();
+        const paidInFull = session.metadata?.paidInFull === "true";
+        const converted = await convertQuoteToOrder(existing, {
+          paidInFull,
+          depositPercent: settings?.depositPercent ?? 25,
+        });
+        const order = await prisma.order.update({
+          where: { id: converted.id },
+          data: { stripePaymentIntent: session.payment_intent as string },
+          include: { items: true },
+        });
+        await sendOrderConfirmationFromOrder(order, { fromCustomQuote: true });
+        await sendAdminNewOrder({
+          orderNumber: order.orderNumber,
+          customerName: order.customerName,
+          totalCents: order.totalCents,
+        });
+      }
+    } else if (orderId) {
+      const paymentType = session.metadata?.paymentType ?? "deposit";
 
-      await sendAdminNewOrder({
-        orderNumber: order.orderNumber,
-        customerName: order.customerName,
-        totalCents: order.totalCents,
-        pendingReview: order.status === "PENDING_REVIEW",
+      if (paymentType === "balance") {
+        const existing = await prisma.order.findUnique({ where: { id: orderId } });
+        if (existing && existing.balanceDueCents > 0) {
+          await prisma.order.update({
+            where: { id: orderId },
+            data: {
+              balanceDueCents: 0,
+              paidInFull: true,
+              stripePaymentIntent: session.payment_intent as string,
+            },
+          });
+        }
+      } else {
+        const existing = await prisma.order.findUnique({ where: { id: orderId } });
+        const order = await prisma.order.update({
+          where: { id: orderId },
+          data: {
+            depositPaid: true,
+            status: existing?.status === "PENDING_REVIEW" ? "PENDING_REVIEW" : "CONFIRMED",
+            stripePaymentIntent: session.payment_intent as string,
+          },
+          include: { items: true },
+        });
+
+        await sendOrderConfirmationFromOrder(order, {
+          pendingReview: order.status === "PENDING_REVIEW",
+        });
+
+        await sendAdminNewOrder({
+          orderNumber: order.orderNumber,
+          customerName: order.customerName,
+          totalCents: order.totalCents,
+          pendingReview: order.status === "PENDING_REVIEW",
+        });
+      }
+    } else {
+      console.warn("[stripe webhook] checkout.session.completed with no orderId or quoteId", {
+        sessionId: session.id,
+        metadata: session.metadata,
       });
     }
   }

@@ -29,6 +29,11 @@ export default async function AdminMenuPage() {
           categoryId: p.categoryId,
           categoryName: p.category.name,
           imageUrl: p.imageUrl,
+          sortOrder: p.sortOrder,
+          allowFlavor: p.allowFlavor,
+          allowTopping: p.allowTopping,
+          allowFrosting: p.allowFrosting,
+          allowWriting: p.allowWriting,
         }))}
       />
     </div>

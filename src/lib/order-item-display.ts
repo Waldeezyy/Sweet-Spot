@@ -1,4 +1,4 @@
-import { isPartyPackage, formatPartyItemSummary } from "@/lib/party-packages";
+import { isPartyPackage, formatPartyItemSummary, isPartyProductSlug } from "@/lib/party-packages";
 import { isCakeCategory, formatCakeItemSummary } from "@/lib/cake-pricing";
 import type { CartItem } from "@/lib/cart";
 
@@ -32,4 +32,27 @@ export function formatCartItemDetails(item: CartItem): string[] {
   if (item.writing) lines.push(`Writing: ${item.writing}`);
   if (item.designNotes) lines.push(`Design: ${item.designNotes}`);
   return lines;
+}
+
+export function formatOrderItemLine(item: {
+  productName: string;
+  productSlug?: string | null;
+  quantity: number;
+  flavor?: string | null;
+  frosting?: string | null;
+  toppings?: string | null;
+  writing?: string | null;
+  designNotes?: string | null;
+}): string {
+  if (item.productSlug && isPartyProductSlug(item.productSlug)) {
+    const details = formatPartyItemSummary(item);
+    return `${item.productName} × ${item.quantity}${details.length ? ` — ${details.join(" · ")}` : ""}`;
+  }
+  const parts = [`${item.productName} × ${item.quantity}`];
+  if (item.flavor) parts.push(`Flavor: ${item.flavor}`);
+  if (item.frosting) parts.push(`Frosting: ${item.frosting}`);
+  if (item.toppings) parts.push(`Add-ons: ${item.toppings}`);
+  if (item.writing) parts.push(`Writing: ${item.writing}`);
+  if (item.designNotes) parts.push(item.designNotes);
+  return parts.join(" — ");
 }

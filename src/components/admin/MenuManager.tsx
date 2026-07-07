@@ -15,6 +15,11 @@ type Product = {
   categoryId: string;
   categoryName: string;
   imageUrl: string | null;
+  sortOrder: number;
+  allowFlavor: boolean;
+  allowTopping: boolean;
+  allowFrosting: boolean;
+  allowWriting: boolean;
 };
 
 type Category = { id: string; name: string };
@@ -37,7 +42,7 @@ export function MenuManager({
     setTimeout(() => setToast(""), 3000);
   }
 
-  async function saveProduct(data: Partial<Product> & { name: string; categoryId: string; basePriceCents: number }) {
+  async function saveProduct(data: Record<string, unknown>) {
     const res = await fetch(editing ? `/api/admin/products/${editing.id}` : "/api/admin/products", {
       method: editing ? "PATCH" : "POST",
       headers: { "Content-Type": "application/json" },
@@ -80,12 +85,18 @@ export function MenuManager({
       <div className="mt-8 space-y-4">
         {products.map((p) => (
           <div key={p.id} className={`card flex flex-wrap items-center justify-between gap-4 ${!p.isActive ? "opacity-60" : ""}`}>
-            <div>
-              <p className="text-xs text-[var(--warm-gray)]">{p.categoryName}</p>
-              <h3 className="font-semibold">{p.name}</h3>
-              <p className="text-sm text-[var(--rose)]">
-                {p.isStartingPrice ? "Starting at " : ""}{formatCents(p.basePriceCents)}
-              </p>
+            <div className="flex gap-4">
+              {p.imageUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={p.imageUrl} alt="" className="h-16 w-16 rounded-lg object-cover" />
+              )}
+              <div>
+                <p className="text-xs text-[var(--warm-gray)]">{p.categoryName}</p>
+                <h3 className="font-semibold">{p.name}</h3>
+                <p className="text-sm text-[var(--rose)]">
+                  {p.isStartingPrice ? "Starting at " : ""}{formatCents(p.basePriceCents)}
+                </p>
+              </div>
             </div>
             <div className="flex flex-wrap gap-2">
               <button type="button" onClick={() => { setEditing(p); setShowForm(false); }} className="btn-secondary text-sm">Edit</button>
@@ -108,7 +119,7 @@ function ProductForm({
 }: {
   categories: Category[];
   initial?: Product;
-  onSave: (data: Partial<Product> & { name: string; categoryId: string; basePriceCents: number }) => void;
+  onSave: (data: Record<string, unknown>) => void;
   onCancel: () => void;
 }) {
   const [name, setName] = useState(initial?.name ?? "");
@@ -117,6 +128,25 @@ function ProductForm({
   const [isStartingPrice, setIsStartingPrice] = useState(initial?.isStartingPrice ?? false);
   const [orderType, setOrderType] = useState(initial?.orderType ?? "STANDARD");
   const [categoryId, setCategoryId] = useState(initial?.categoryId ?? categories[0]?.id ?? "");
+  const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? "");
+  const [sortOrder, setSortOrder] = useState(initial?.sortOrder ?? 0);
+  const [allowFlavor, setAllowFlavor] = useState(initial?.allowFlavor ?? true);
+  const [allowTopping, setAllowTopping] = useState(initial?.allowTopping ?? true);
+  const [allowFrosting, setAllowFrosting] = useState(initial?.allowFrosting ?? true);
+  const [allowWriting, setAllowWriting] = useState(initial?.allowWriting ?? true);
+  const [uploading, setUploading] = useState(false);
+
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    const form = new FormData();
+    form.append("file", file);
+    const res = await fetch("/api/upload", { method: "POST", body: form });
+    const data = await res.json();
+    if (data.url) setImageUrl(data.url);
+    setUploading(false);
+  }
 
   return (
     <form
@@ -130,6 +160,12 @@ function ProductForm({
           basePriceCents: Math.round(parseFloat(price) * 100),
           isStartingPrice,
           orderType,
+          imageUrl: imageUrl || null,
+          sortOrder,
+          allowFlavor,
+          allowTopping,
+          allowFrosting,
+          allowWriting,
         });
       }}
     >
@@ -165,6 +201,37 @@ function ProductForm({
           <option value="SEMI_CUSTOM">Custom item (Brandy reviews price)</option>
         </select>
       </div>
+      <div>
+        <label className="label">Sort order (lower shows first)</label>
+        <input type="number" value={sortOrder} onChange={(e) => setSortOrder(Number(e.target.value))} className="input max-w-[120px]" />
+      </div>
+      <div>
+        <label className="label">Photo</label>
+        {imageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={imageUrl} alt="" className="mb-2 h-24 w-24 rounded-lg object-cover" />
+        )}
+        <input type="file" accept="image/*" onChange={handleImageUpload} className="text-sm" />
+        {uploading && <p className="text-xs text-[var(--warm-gray)]">Uploading...</p>}
+      </div>
+      <fieldset className="space-y-2">
+        <legend className="label">What can customers customize? (for simple category items)</legend>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={allowFlavor} onChange={(e) => setAllowFlavor(e.target.checked)} /> Flavor
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={allowFrosting} onChange={(e) => setAllowFrosting(e.target.checked)} /> Frosting
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={allowTopping} onChange={(e) => setAllowTopping(e.target.checked)} /> Toppings
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={allowWriting} onChange={(e) => setAllowWriting(e.target.checked)} /> Writing on top
+        </label>
+      </fieldset>
+      <p className="text-xs text-[var(--warm-gray)]">
+        Cupcake, round cake, sheet cake, and party categories use their own order forms. Size/dozen pricing follows your flyer tiers.
+      </p>
       <div className="flex gap-3">
         <button type="submit" className="btn-primary">Save changes</button>
         <button type="button" onClick={onCancel} className="btn-secondary">Cancel</button>
