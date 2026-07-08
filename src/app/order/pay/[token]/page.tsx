@@ -57,7 +57,7 @@ export default async function OrderPayPage({ params }: { params: Promise<{ token
 
   return (
     <div className="mx-auto max-w-md px-4 py-16">
-      <h1 className="font-[family-name:var(--font-display)] text-3xl font-bold">Pay for Your Rush Order</h1>
+      <h1 className="font-[family-name:var(--font-display)] text-3xl font-bold">Pay for Your Order</h1>
       <p className="mt-2 text-sm text-[var(--warm-gray)]">
         {format(order.scheduledDate, "MMMM d, yyyy")} · {order.orderNumber}
       </p>

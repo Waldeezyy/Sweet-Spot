@@ -177,6 +177,9 @@ export function buildPayButtonHtml(paymentUrl: string, label: string): string {
       <a href="${paymentUrl}" style="display: inline-block; padding: 12px 20px; background: #7d8b6f; color: #fff; text-decoration: none; border-radius: 8px; font-weight: 600;">
         ${label}
       </a>
+    </p>
+    <p style="margin: 0; font-size: 14px; color: #5c5348;">
+      Or copy this link to pay: <a href="${paymentUrl}" style="color: #c97b84;">${paymentUrl}</a>
     </p>`;
 }
 

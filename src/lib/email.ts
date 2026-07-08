@@ -497,21 +497,42 @@ export async function sendOrderQuoted(params: {
   customerName: string;
   orderNumber: string;
   finalTotalCents: number;
+  estimatedTotalCents: number;
   paymentUrl: string;
+  trackUrl: string;
+  scheduledDate: string;
+  fulfillmentType: FulfillmentType;
+  deliveryAddress?: string | null;
+  items: OrderEmailItem[];
   message?: string;
 }) {
+  const priceLines = [
+    params.estimatedTotalCents !== params.finalTotalCents
+      ? `Original estimate: ${formatCents(params.estimatedTotalCents)}<br/>`
+      : "",
+    `<strong>Quoted total due: ${formatCents(params.finalTotalCents)}</strong>`,
+  ].join("");
+
   const html = `
     <div style="font-family: Georgia, 'Times New Roman', serif; color: #3d3630; max-width: 560px;">
       <h1 style="font-size: 24px; margin: 0 0 8px; color: #7d8b6f;">Your order quote is ready!</h1>
       <p style="margin: 0 0 4px; font-size: 14px; color: #5c5348;">Order <strong>${params.orderNumber}</strong></p>
       <p style="margin: 0 0 16px; line-height: 1.6;">Hi ${params.customerName},</p>
-      <p style="margin: 0 0 16px; line-height: 1.6;">Brandy has reviewed your custom order and sent you a quote.</p>
-      ${params.message ? buildMessageCalloutHtml(params.message) : ""}
-      <h2 style="font-size: 16px; margin: 24px 0 8px;">Quoted price</h2>
-      <p style="margin: 0; color: #5c5348; line-height: 1.6;">
-        <strong>Total due: ${formatCents(params.finalTotalCents)}</strong>
+      <p style="margin: 0 0 16px; line-height: 1.6;">
+        Great news — Brandy has reviewed your custom order and prepared a quote for you.
+        Review the details below, then pay online to confirm your order and secure your date.
       </p>
+      ${params.message ? buildMessageCalloutHtml(params.message) : ""}
+      ${buildOrderDetailsHtml({
+        scheduledDate: params.scheduledDate,
+        fulfillmentType: params.fulfillmentType,
+        deliveryAddress: params.deliveryAddress,
+      })}
+      ${buildOrderItemsHtml(params.items)}
+      <h2 style="font-size: 16px; margin: 24px 0 8px;">Quoted price</h2>
+      <p style="margin: 0; color: #5c5348; line-height: 1.6;">${priceLines}</p>
       ${buildPayButtonHtml(params.paymentUrl, "Review quote & pay online")}
+      ${buildTrackButtonHtml(params.trackUrl)}
       <p style="margin: 16px 0 0; font-size: 14px; color: #5c5348;">
         Prefer Venmo, Cash App, or cash? Reply to Brandy directly — online payment is optional.
       </p>

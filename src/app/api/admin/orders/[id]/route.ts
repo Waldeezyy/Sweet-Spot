@@ -145,12 +145,19 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
     const siteUrl = await getSiteUrl();
     const paymentUrl = `${siteUrl}/order/pay/${token}`;
+    const trackUrl = `${siteUrl}/order/status/${order.trackingToken}`;
     await sendOrderQuoted({
       to: order.customerEmail,
       customerName: order.customerName,
       orderNumber: order.orderNumber,
       finalTotalCents: body.finalTotalCents,
+      estimatedTotalCents: existing.totalCents,
       paymentUrl,
+      trackUrl,
+      scheduledDate: format(order.scheduledDate, "EEEE, MMMM d, yyyy"),
+      fulfillmentType: order.fulfillmentType,
+      deliveryAddress: order.deliveryAddress,
+      items: order.items,
       message: body.approvalMessage,
     });
 
