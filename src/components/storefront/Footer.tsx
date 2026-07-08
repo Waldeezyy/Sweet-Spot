@@ -1,6 +1,10 @@
 import Link from "next/link";
+import { prisma } from "@/lib/db";
 
-export function Footer() {
+export async function Footer() {
+  const settings = await prisma.shopSettings.findFirst();
+  const contactEmail = settings?.contactEmail;
+
   return (
     <footer className="mt-auto border-t border-[var(--blush)] bg-white">
       <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 md:grid-cols-3">
@@ -20,11 +24,13 @@ export function Footer() {
         </div>
         <div>
           <h4 className="font-semibold">Contact</h4>
-          <p className="mt-2 text-sm text-[var(--warm-gray)]">
-            <a href="mailto:bssweetstop25@gmail.com" className="hover:text-[var(--chocolate)]">
-              bssweetstop25@gmail.com
-            </a>
-          </p>
+          {contactEmail && (
+            <p className="mt-2 text-sm text-[var(--warm-gray)]">
+              <a href={`mailto:${contactEmail}`} className="hover:text-[var(--chocolate)]">
+                {contactEmail}
+              </a>
+            </p>
+          )}
         </div>
       </div>
       <div className="border-t border-[var(--blush)] py-4 text-center text-xs text-[var(--warm-gray)]">
