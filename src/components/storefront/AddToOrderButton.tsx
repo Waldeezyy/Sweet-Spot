@@ -110,6 +110,7 @@ export function AddToOrderButton({
         productSlug={product.slug}
         productName={product.name}
         orderType={product.orderType}
+        basePriceCents={product.basePriceCents}
         flavors={flavors}
         onSubmit={(data) => {
           addItem({
@@ -140,6 +141,7 @@ export function AddToOrderButton({
       <RoundCakeForm
         productSlug={product.slug}
         productName={product.name}
+        basePriceCents={product.basePriceCents}
         flavors={flavors}
         addOnOptions={addOnOptions}
         onSubmit={(data) => {
@@ -175,6 +177,7 @@ export function AddToOrderButton({
       <SheetCakeForm
         productSlug={product.slug}
         productName={product.name}
+        basePriceCents={product.basePriceCents}
         flavors={flavors}
         addOnOptions={addOnOptions}
         onSubmit={(data) => {

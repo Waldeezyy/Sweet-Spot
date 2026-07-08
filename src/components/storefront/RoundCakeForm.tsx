@@ -13,6 +13,7 @@ import {
 type Props = {
   productSlug: string;
   productName: string;
+  basePriceCents: number;
   flavors: string[];
   addOnOptions: MenuAddOn[];
   onSubmit: (data: {
@@ -29,7 +30,7 @@ type Props = {
   onCancel: () => void;
 };
 
-export function RoundCakeForm({ productSlug, productName, flavors, addOnOptions, onSubmit, onCancel }: Props) {
+export function RoundCakeForm({ productSlug, productName, basePriceCents, flavors, addOnOptions, onSubmit, onCancel }: Props) {
   const isCustom = productSlug === "custom-round-cake";
   const [cakeSize, setCakeSize] = useState<RoundCakeSizeId>("6");
   const [flavor, setFlavor] = useState(flavors[0] ?? "");
@@ -40,7 +41,7 @@ export function RoundCakeForm({ productSlug, productName, flavors, addOnOptions,
   const [allergyNotes, setAllergyNotes] = useState("");
   const [error, setError] = useState("");
 
-  const baseCents = getRoundCakePriceCents(cakeSize, isCustom);
+  const baseCents = getRoundCakePriceCents(cakeSize, isCustom, basePriceCents);
   const addOnCents = sumAddOnCentsFromList(selectedAddOns, addOnOptions);
   const unitPriceCents = baseCents + addOnCents;
   const sizeInfo = ROUND_CAKE_SIZES.find((s) => s.id === cakeSize);

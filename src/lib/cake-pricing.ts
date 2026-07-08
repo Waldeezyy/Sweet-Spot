@@ -77,22 +77,31 @@ export function getCupcakeFlavors(
   return allFlavors;
 }
 
-export function getCupcakePriceCents(productSlug: string, dozens: 1 | 2): number {
+export function getCupcakePriceCents(productSlug: string, dozens: 1 | 2, fallbackCents?: number): number {
   const pricing = CUPCAKE_PRICING[productSlug];
-  if (!pricing) return 0;
-  return dozens === 1 ? pricing.oneDozenCents : pricing.twoDozenCents;
+  if (pricing) {
+    return dozens === 1 ? pricing.oneDozenCents : pricing.twoDozenCents;
+  }
+  if (fallbackCents && fallbackCents > 0) {
+    return dozens === 1 ? fallbackCents : fallbackCents * 2;
+  }
+  return 0;
 }
 
-export function getRoundCakePriceCents(sizeId: RoundCakeSizeId, isCustom: boolean): number {
+export function getRoundCakePriceCents(sizeId: RoundCakeSizeId, isCustom: boolean, fallbackCents?: number): number {
   const size = ROUND_CAKE_SIZES.find((s) => s.id === sizeId);
-  if (!size) return 0;
-  return isCustom ? size.customStartCents : size.basicCents;
+  if (size) {
+    return isCustom ? size.customStartCents : size.basicCents;
+  }
+  return fallbackCents ?? 0;
 }
 
-export function getSheetCakePriceCents(productSlug: string, isCustom: boolean): number {
+export function getSheetCakePriceCents(productSlug: string, isCustom: boolean, fallbackCents?: number): number {
   const info = SHEET_CAKE_INFO[productSlug];
-  if (!info) return 0;
-  return isCustom ? info.customStartCents : info.basicCents;
+  if (info) {
+    return isCustom ? info.customStartCents : info.basicCents;
+  }
+  return fallbackCents ?? 0;
 }
 
 export function sumAddOnCents(addOnIds: AddOnId[]): number {

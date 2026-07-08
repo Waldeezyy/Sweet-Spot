@@ -9,6 +9,7 @@ import { SHEET_CAKE_INFO, getSheetCakePriceCents } from "@/lib/cake-pricing";
 type Props = {
   productSlug: string;
   productName: string;
+  basePriceCents: number;
   flavors: string[];
   addOnOptions: MenuAddOn[];
   onSubmit: (data: {
@@ -24,7 +25,7 @@ type Props = {
   onCancel: () => void;
 };
 
-export function SheetCakeForm({ productSlug, productName, flavors, addOnOptions, onSubmit, onCancel }: Props) {
+export function SheetCakeForm({ productSlug, productName, basePriceCents, flavors, addOnOptions, onSubmit, onCancel }: Props) {
   const isCustom = productSlug.startsWith("custom-");
   const sheetInfo = SHEET_CAKE_INFO[productSlug];
   const [flavor, setFlavor] = useState(flavors[0] ?? "");
@@ -35,7 +36,7 @@ export function SheetCakeForm({ productSlug, productName, flavors, addOnOptions,
   const [allergyNotes, setAllergyNotes] = useState("");
   const [error, setError] = useState("");
 
-  const baseCents = getSheetCakePriceCents(productSlug, isCustom);
+  const baseCents = getSheetCakePriceCents(productSlug, isCustom, basePriceCents);
   const addOnCents = sumAddOnCentsFromList(selectedAddOns, addOnOptions);
   const unitPriceCents = baseCents + addOnCents;
 

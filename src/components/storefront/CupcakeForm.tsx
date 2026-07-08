@@ -12,6 +12,7 @@ type Props = {
   productSlug: string;
   productName: string;
   orderType: OrderType;
+  basePriceCents: number;
   flavors: string[];
   onSubmit: (data: {
     flavor: string;
@@ -25,7 +26,7 @@ type Props = {
   onCancel: () => void;
 };
 
-export function CupcakeForm({ productSlug, productName, orderType, flavors, onSubmit, onCancel }: Props) {
+export function CupcakeForm({ productSlug, productName, orderType, basePriceCents, flavors, onSubmit, onCancel }: Props) {
   const flavorOptions = flavors;
   const [flavor, setFlavor] = useState(flavorOptions[0] ?? "");
   const [frosting, setFrosting] = useState("Vanilla buttercream");
@@ -35,7 +36,7 @@ export function CupcakeForm({ productSlug, productName, orderType, flavors, onSu
   const [error, setError] = useState("");
 
   const pricing = CUPCAKE_PRICING[productSlug];
-  const unitPriceCents = getCupcakePriceCents(productSlug, dozenCount);
+  const unitPriceCents = getCupcakePriceCents(productSlug, dozenCount, basePriceCents);
 
   function handleSubmit() {
     if (orderType === "SEMI_CUSTOM" && !designNotes.trim()) {
@@ -70,7 +71,7 @@ export function CupcakeForm({ productSlug, productName, orderType, flavors, onSu
                 dozenCount === d ? "border-[var(--chocolate)] bg-[var(--blush)]/30" : "border-[var(--blush)]"
               }`}
             >
-              {d} dozen — {formatCents(getCupcakePriceCents(productSlug, d))}
+              {d} dozen — {formatCents(getCupcakePriceCents(productSlug, d, basePriceCents))}
             </button>
           ))}
         </div>
