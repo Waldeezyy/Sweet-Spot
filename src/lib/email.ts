@@ -1,6 +1,6 @@
 import { Resend } from "resend";
 import { format } from "date-fns";
-import { formatCents } from "@/lib/utils";
+import { formatCents, escapeHtml } from "@/lib/utils";
 import { getSiteUrl } from "@/lib/site-url";
 import { STATUS_CUSTOMER_MESSAGE } from "@/lib/order-tracking";
 import {
@@ -311,7 +311,7 @@ export async function sendQuoteRequestToAdmin(params: {
   const html = `
     <div style="font-family: Georgia, 'Times New Roman', serif; color: #3d3630; max-width: 560px;">
       <h1 style="font-size: 24px; margin: 0 0 8px; color: #7d8b6f;">New custom order request</h1>
-      <p style="margin: 0 0 16px; line-height: 1.6;"><strong>${params.customerName}</strong> requested a custom order quote.</p>
+      <p style="margin: 0 0 16px; line-height: 1.6;"><strong>${escapeHtml(params.customerName)}</strong> requested a custom order quote.</p>
       ${buildCustomerContactHtml({
         customerName: params.customerName,
         customerEmail: params.customerEmail,
@@ -319,7 +319,7 @@ export async function sendQuoteRequestToAdmin(params: {
       })}
       <h2 style="font-size: 16px; margin: 24px 0 8px;">Request details</h2>
       <p style="margin: 0; color: #5c5348; line-height: 1.6;">${details.join("<br/>")}</p>
-      ${params.description ? `<p style="margin: 16px 0 0; color: #5c5348; line-height: 1.6;">${params.description}</p>` : ""}
+      ${params.description ? `<p style="margin: 16px 0 0; color: #5c5348; line-height: 1.6; white-space: pre-wrap;">${escapeHtml(params.description)}</p>` : ""}
       ${buildAdminManageButtonHtml(adminUrl)}
     </div>`;
 
