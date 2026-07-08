@@ -430,6 +430,113 @@ export async function sendRushDeclined(params: {
   );
 }
 
+export async function sendCustomOrderRequestReceived(params: {
+  to: string;
+  customerName: string;
+  orderNumber: string;
+  scheduledDate: string;
+  trackingToken: string;
+  isRush?: boolean;
+}) {
+  const siteUrl = await getSiteUrl();
+  const trackLink = `${siteUrl}/order/status/${params.trackingToken}`;
+  const rushNote = params.isRush
+    ? "<p>Your requested date is inside our standard lead time, so Brandy will also confirm whether we can accommodate the rush timing.</p>"
+    : "";
+
+  await sendEmail(
+    params.to,
+    `Custom order request received — ${params.orderNumber}`,
+    `<h1>Hi ${params.customerName},</h1>
+    <p>We received your custom order request for <strong>${params.scheduledDate}</strong>.</p>
+    <p>Brandy will review your order and send you a quoted price within about 24 hours. You will not be charged until you review and pay the final quote.</p>
+    ${rushNote}
+    <p>Order <strong>${params.orderNumber}</strong></p>
+    <p><a href="${trackLink}">Track your request</a></p>`
+  );
+}
+
+export async function sendCustomOrderRequestToAdmin(params: {
+  orderNumber: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone?: string | null;
+  scheduledDate: string;
+  totalCents: number;
+  fulfillmentType: FulfillmentType;
+  deliveryAddress?: string | null;
+  items: OrderEmailItem[];
+  isRush?: boolean;
+}) {
+  const siteUrl = await getSiteUrl();
+  const adminUrl = `${siteUrl}/admin/orders`;
+
+  const html = buildAdminOrderNotificationHtml({
+    headline: "New custom order request",
+    intro: `<strong>${params.customerName}</strong> submitted a custom order that needs your quoted price before payment.`,
+    orderNumber: params.orderNumber,
+    customerName: params.customerName,
+    customerEmail: params.customerEmail,
+    customerPhone: params.customerPhone,
+    totalCents: params.totalCents,
+    scheduledDate: params.scheduledDate,
+    fulfillmentType: params.fulfillmentType,
+    deliveryAddress: params.deliveryAddress,
+    items: params.items,
+    adminUrl,
+    extraNotes: `Estimated total: <strong>${formatCents(params.totalCents)}</strong> (not final — set quoted price in admin).${
+      params.isRush ? " Customer also requested a rush date." : ""
+    }`,
+  });
+
+  await sendEmail(adminEmail, `Custom order request — ${params.orderNumber}`, html);
+}
+
+export async function sendOrderQuoted(params: {
+  to: string;
+  customerName: string;
+  orderNumber: string;
+  finalTotalCents: number;
+  paymentUrl: string;
+  message?: string;
+}) {
+  const html = `
+    <div style="font-family: Georgia, 'Times New Roman', serif; color: #3d3630; max-width: 560px;">
+      <h1 style="font-size: 24px; margin: 0 0 8px; color: #7d8b6f;">Your order quote is ready!</h1>
+      <p style="margin: 0 0 4px; font-size: 14px; color: #5c5348;">Order <strong>${params.orderNumber}</strong></p>
+      <p style="margin: 0 0 16px; line-height: 1.6;">Hi ${params.customerName},</p>
+      <p style="margin: 0 0 16px; line-height: 1.6;">Brandy has reviewed your custom order and sent you a quote.</p>
+      ${params.message ? buildMessageCalloutHtml(params.message) : ""}
+      <h2 style="font-size: 16px; margin: 24px 0 8px;">Quoted price</h2>
+      <p style="margin: 0; color: #5c5348; line-height: 1.6;">
+        <strong>Total due: ${formatCents(params.finalTotalCents)}</strong>
+      </p>
+      ${buildPayButtonHtml(params.paymentUrl, "Review quote & pay online")}
+      <p style="margin: 16px 0 0; font-size: 14px; color: #5c5348;">
+        Prefer Venmo, Cash App, or cash? Reply to Brandy directly — online payment is optional.
+      </p>
+    </div>`;
+
+  await sendEmail(params.to, `Your order quote — ${params.orderNumber}`, html);
+}
+
+export async function sendOrderQuoteDeclined(params: {
+  to: string;
+  customerName: string;
+  orderNumber: string;
+  message?: string;
+}) {
+  const siteUrl = await getSiteUrl();
+  await sendEmail(
+    params.to,
+    `Update on your custom order — ${params.orderNumber}`,
+    `<h1>Hi ${params.customerName},</h1>
+    <p>Thank you for thinking of B's Sweet Spot. Unfortunately we're not able to take this custom order at this time.</p>
+    ${params.message ? `<p>${params.message}</p>` : ""}
+    <p>Feel free to reach out at bssweetstop25@gmail.com or browse our <a href="${siteUrl}/menu">menu</a> for other options.</p>`
+  );
+}
+
 export async function sendContactForm(params: {
   name: string;
   email: string;

@@ -13,6 +13,8 @@ import {
   sendAdminNewOrder,
   sendRushRequestToAdmin,
   sendRushRequestReceived,
+  sendCustomOrderRequestReceived,
+  sendCustomOrderRequestToAdmin,
 } from "@/lib/email";
 import { isPastScheduledDate, isRushOrderDate } from "@/lib/rush-order";
 
@@ -50,16 +52,16 @@ export async function POST(req: Request) {
 
   const isRush = isRushOrderDate(meta.scheduledDate, settings.leadTimeDays);
   const semiCustom = hasSemiCustom(items as CartItem[]);
-  const rushRequestOnly = isRush && !semiCustom;
+  const reviewFirstNoPayment = semiCustom || isRush;
 
   const orderNumber = generateOrderNumber();
 
-  if (rushRequestOnly) {
+  if (reviewFirstNoPayment) {
     const order = await prisma.order.create({
       data: {
         orderNumber,
         status: "PENDING_REVIEW",
-        isRush: true,
+        isRush,
         customerName: meta.customerName,
         customerEmail: meta.customerEmail,
         customerPhone: meta.customerPhone,
@@ -94,6 +96,31 @@ export async function POST(req: Request) {
     });
 
     const scheduledLabel = format(new Date(meta.scheduledDate), "MMM d, yyyy");
+
+    if (semiCustom) {
+      await sendCustomOrderRequestReceived({
+        to: order.customerEmail,
+        customerName: order.customerName,
+        orderNumber: order.orderNumber,
+        scheduledDate: scheduledLabel,
+        trackingToken: order.trackingToken,
+        isRush,
+      });
+      await sendCustomOrderRequestToAdmin({
+        orderNumber: order.orderNumber,
+        customerName: order.customerName,
+        customerEmail: order.customerEmail,
+        customerPhone: order.customerPhone,
+        scheduledDate: scheduledLabel,
+        totalCents: order.totalCents,
+        fulfillmentType: order.fulfillmentType,
+        deliveryAddress: order.deliveryAddress,
+        items: order.items,
+        isRush,
+      });
+      return NextResponse.json({ url: `/order/success?order=${orderNumber}&submitted=custom` });
+    }
+
     await sendRushRequestReceived({
       to: order.customerEmail,
       customerName: order.customerName,
@@ -113,7 +140,7 @@ export async function POST(req: Request) {
       items: order.items,
     });
 
-    return NextResponse.json({ url: `/order/success?order=${orderNumber}&submitted=1` });
+    return NextResponse.json({ url: `/order/success?order=${orderNumber}&submitted=rush` });
   }
 
   const policy = getPaymentPolicy(items as CartItem[], totalCents, {
@@ -126,14 +153,13 @@ export async function POST(req: Request) {
     policy
   );
 
-  const needsReview = semiCustom || isRush;
-  const status = needsReview ? "PENDING_REVIEW" : payment.paidInFull ? "CONFIRMED" : "PENDING_DEPOSIT";
+  const status = payment.paidInFull ? "CONFIRMED" : "PENDING_DEPOSIT";
 
   const order = await prisma.order.create({
     data: {
       orderNumber,
       status,
-      isRush,
+      isRush: false,
       customerName: meta.customerName,
       customerEmail: meta.customerEmail,
       customerPhone: meta.customerPhone,
@@ -173,13 +199,11 @@ export async function POST(req: Request) {
       where: { id: order.id },
       data: {
         depositPaid: true,
-        status: needsReview ? "PENDING_REVIEW" : "CONFIRMED",
+        status: "CONFIRMED",
       },
       include: { items: true },
     });
-    await sendOrderConfirmationFromOrder(paid, {
-      pendingReview: paid.status === "PENDING_REVIEW",
-    });
+    await sendOrderConfirmationFromOrder(paid);
     await sendAdminNewOrder({
       orderNumber: paid.orderNumber,
       customerName: paid.customerName,
@@ -190,7 +214,7 @@ export async function POST(req: Request) {
       fulfillmentType: paid.fulfillmentType,
       deliveryAddress: paid.deliveryAddress,
       items: paid.items,
-      pendingReview: paid.status === "PENDING_REVIEW",
+      pendingReview: false,
     });
     return NextResponse.json({ url: `/order/success?order=${orderNumber}&demo=1` });
   }

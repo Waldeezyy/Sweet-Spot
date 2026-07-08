@@ -58,7 +58,7 @@ export default function OrderPage() {
   const isRush =
     Boolean(meta.scheduledDate && settings) &&
     isRushOrderDate(meta.scheduledDate!, settings!.leadTimeDays);
-  const rushRequestOnly = isRush && !semiCustom;
+  const reviewFirstNoPayment = semiCustom || isRush;
 
   function validateStep(): boolean {
     const e: Record<string, string> = {};
@@ -142,7 +142,7 @@ export default function OrderPage() {
           <p className="text-[var(--warm-gray)]">Review your customizations above. To change an item, go back to step 1 and remove it, then add again from the menu.</p>
           {hasSemiCustom(items) && (
             <p className="mt-4 rounded-xl bg-[var(--blush)]/40 p-4 text-sm">
-              Your order includes custom items. Deposit secures your date — Brandy will confirm your final price within 24 hours.
+              Your order includes custom items. The price shown is an estimate only — Brandy will review your order and send you a final quote within about 24 hours. You will not be charged until you review and pay the quoted price.
             </p>
           )}
         </section>
@@ -234,13 +234,15 @@ export default function OrderPage() {
               </div>
             )}
 
-            {rushRequestOnly && (
+            {reviewFirstNoPayment && (
               <p className="mt-3 text-[var(--warm-gray)]">
-                No payment now — submit your request and Brandy will email you if your rush date is approved.
+                {semiCustom
+                  ? "No payment now — submit your request and Brandy will email you a quoted price to review and pay."
+                  : "No payment now — submit your request and Brandy will email you if your rush date is approved."}
               </p>
             )}
 
-            {policy && !rushRequestOnly && (
+            {policy && !reviewFirstNoPayment && (
               <>
                 <p className="mt-3 text-[var(--warm-gray)]">{policy.reason}</p>
 
@@ -310,13 +312,15 @@ export default function OrderPage() {
           <button
             type="button"
             onClick={handleCheckout}
-            disabled={loading || (!rushRequestOnly && !payment)}
+            disabled={loading || (!reviewFirstNoPayment && !payment)}
             className="btn-primary"
           >
             {loading
               ? "Processing..."
-              : rushRequestOnly
-                ? "Submit rush request"
+              : reviewFirstNoPayment
+                ? semiCustom
+                  ? "Submit order request"
+                  : "Submit rush request"
                 : payment?.paidInFull
                   ? `Pay ${formatCents(payment.chargeCents)} in Full`
                   : `Pay ${formatCents(payment?.chargeCents ?? 0)} Deposit`}

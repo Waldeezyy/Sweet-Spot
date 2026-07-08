@@ -12,6 +12,20 @@ export default async function AdminOrdersPage() {
     orderBy: { createdAt: "desc" },
   });
 
+  const productIds = [
+    ...new Set(orders.flatMap((o) => o.items.map((i) => i.productId).filter(Boolean) as string[])),
+  ];
+  const products =
+    productIds.length > 0
+      ? await prisma.product.findMany({
+          where: { id: { in: productIds } },
+          select: { id: true, orderType: true },
+        })
+      : [];
+  const semiCustomProductIds = new Set(
+    products.filter((p) => p.orderType === "SEMI_CUSTOM").map((p) => p.id)
+  );
+
   return (
     <div>
       <h1 className="font-[family-name:var(--font-display)] text-3xl font-bold">Orders</h1>
@@ -32,6 +46,9 @@ export default async function AdminOrdersPage() {
           depositPaid: o.depositPaid,
           isRush: o.isRush,
           paymentToken: o.paymentToken,
+          hasSemiCustom: o.items.some(
+            (i) => i.productId && semiCustomProductIds.has(i.productId)
+          ),
           items: o.items.map((i) => ({
             productName: i.productName,
             productSlug: i.productSlug,

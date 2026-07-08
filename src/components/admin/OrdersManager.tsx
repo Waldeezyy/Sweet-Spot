@@ -33,6 +33,7 @@ type Order = {
   paidInFull: boolean;
   depositPaid: boolean;
   isRush: boolean;
+  hasSemiCustom: boolean;
   paymentToken: string | null;
   items: OrderItem[];
 };
@@ -46,7 +47,7 @@ const statusActions: Record<string, { label: string; next: string }[]> = {
 export function OrdersManager({ orders: initial }: { orders: Order[] }) {
   const router = useRouter();
   const [selected, setSelected] = useState<Order | null>(null);
-  const [finalPrice, setFinalPrice] = useState("");
+  const [quotedPrice, setQuotedPrice] = useState("");
   const [estimatedReady, setEstimatedReady] = useState("");
   const [message, setMessage] = useState("");
   const [offlineNote, setOfflineNote] = useState("");
@@ -101,6 +102,35 @@ export function OrdersManager({ orders: initial }: { orders: Order[] }) {
     router.refresh();
   }
 
+  async function approveQuote() {
+    if (!selected) return;
+    const priceCents = Math.round(parseFloat(quotedPrice || String(selected.totalCents / 100)) * 100);
+    if (!priceCents || priceCents < 0) {
+      notify("Please enter a valid quoted price.");
+      return;
+    }
+    const { ok, data } = await patchOrder(selected.id, {
+      action: "approve_quote",
+      finalTotalCents: priceCents,
+      approvalMessage: message || undefined,
+    });
+    if (ok) {
+      setLastPayUrl(data.paymentUrl ?? null);
+      notify("Quote sent — customer emailed pay link (if Resend is on).");
+      router.refresh();
+    } else {
+      notify(data.error ?? "Failed to send quote.");
+    }
+  }
+
+  async function declineQuote() {
+    if (!selected || !confirm("Decline this custom order request? The customer will be emailed if Resend is configured.")) return;
+    await patchOrder(selected.id, { action: "decline_quote", declineMessage: message || undefined });
+    setSelected(null);
+    notify("Custom order request declined.");
+    router.refresh();
+  }
+
   async function markPaidOffline(paidInFull: boolean) {
     if (!selected) return;
     const note = offlineNote.trim() || (paidInFull ? "Paid in full offline" : "Deposit paid offline");
@@ -124,6 +154,7 @@ export function OrdersManager({ orders: initial }: { orders: Order[] }) {
   function openOrder(order: Order) {
     setSelected(order);
     setEstimatedReady(defaultEstimatedReady(order.scheduledDate));
+    setQuotedPrice((order.totalCents / 100).toFixed(2));
     setMessage("");
     setOfflineNote("");
     setLastPayUrl(null);
@@ -146,9 +177,16 @@ export function OrdersManager({ orders: initial }: { orders: Order[] }) {
     (selected?.paymentToken && origin ? `${origin}/order/pay/${selected.paymentToken}` : null);
 
   const isPendingRushRequest =
-    selected?.isRush && selected.status === "PENDING_REVIEW" && !selected.depositPaid;
-  const isAwaitingRushPayment =
-    selected?.isRush && selected.status === "PENDING_DEPOSIT" && !selected.depositPaid && selected.paymentToken;
+    selected?.isRush &&
+    !selected.hasSemiCustom &&
+    selected.status === "PENDING_REVIEW" &&
+    !selected.depositPaid;
+  const isPendingCustomQuoteRequest =
+    selected?.hasSemiCustom &&
+    selected.status === "PENDING_REVIEW" &&
+    !selected.depositPaid;
+  const isAwaitingPayment =
+    selected?.status === "PENDING_DEPOSIT" && !selected.depositPaid && selected.paymentToken;
 
   return (
     <div className="mt-8 space-y-4">
@@ -156,7 +194,12 @@ export function OrdersManager({ orders: initial }: { orders: Order[] }) {
       {initial.map((o) => (
         <div
           key={o.id}
-          className={`card cursor-pointer ${o.status === "PENDING_REVIEW" || (o.status === "PENDING_DEPOSIT" && o.isRush && !o.depositPaid) ? "border-yellow-400 border-2" : ""}`}
+          className={`card cursor-pointer ${
+            o.status === "PENDING_REVIEW" ||
+            (o.status === "PENDING_DEPOSIT" && !o.depositPaid && o.paymentToken)
+              ? "border-yellow-400 border-2"
+              : ""
+          }`}
           onClick={() => openOrder(o)}
         >
           <div className="flex flex-wrap justify-between gap-2">
@@ -165,6 +208,9 @@ export function OrdersManager({ orders: initial }: { orders: Order[] }) {
                 {o.orderNumber}
                 {o.isRush && (
                   <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-900">Rush</span>
+                )}
+                {o.hasSemiCustom && (
+                  <span className="ml-2 rounded-full bg-[var(--blush)] px-2 py-0.5 text-xs">Custom</span>
                 )}
               </p>
               <p className="text-sm text-[var(--warm-gray)]">{o.customerName} · {format(new Date(o.scheduledDate), "MMM d, yyyy")}</p>
@@ -184,9 +230,15 @@ export function OrdersManager({ orders: initial }: { orders: Order[] }) {
           <div className="card max-h-[90vh] max-w-lg overflow-y-auto">
             <h3 className="font-semibold">{selected.orderNumber}</h3>
             <p className="text-sm">{selected.customerName} — {selected.customerEmail}</p>
-            {selected.isRush && (
+            {selected.isRush && !selected.hasSemiCustom && (
               <p className="mt-1 text-sm text-amber-900">
                 Rush order · {formatCents(RUSH_FEE_CENTS)} fee added on approval
+              </p>
+            )}
+            {selected.hasSemiCustom && (
+              <p className="mt-1 text-sm text-[var(--warm-gray)]">
+                Custom order · set quoted price before customer pays
+                {selected.isRush ? " (rush date requested — include rush fee in quote if applicable)" : ""}
               </p>
             )}
             <p className="mt-2 text-sm text-[var(--warm-gray)]">
@@ -225,7 +277,32 @@ export function OrdersManager({ orders: initial }: { orders: Order[] }) {
               </div>
             )}
 
-            {isAwaitingRushPayment && (
+            {isPendingCustomQuoteRequest && (
+              <div className="mt-4 space-y-3">
+                <p className="text-sm text-[var(--warm-gray)]">
+                  Estimated total: {formatCents(selected.totalCents)} (not final)
+                </p>
+                <label className="label">Quoted price ($)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={quotedPrice}
+                  onChange={(e) => setQuotedPrice(e.target.value)}
+                  className="input"
+                  placeholder={(selected.totalCents / 100).toFixed(2)}
+                />
+                <label className="label">Message to customer (optional)</label>
+                <textarea className="input min-h-[60px]" value={message} onChange={(e) => setMessage(e.target.value)} />
+                <button type="button" className="btn-primary w-full" onClick={approveQuote}>
+                  Send quote & pay link
+                </button>
+                <button type="button" className="btn-secondary w-full" onClick={declineQuote}>
+                  Decline request
+                </button>
+              </div>
+            )}
+
+            {isAwaitingPayment && (
               <div className="mt-4 space-y-3">
                 <p className="text-sm">
                   Total due: <strong>{formatCents(selected.finalTotalCents ?? selected.totalCents)}</strong>
@@ -246,23 +323,6 @@ export function OrdersManager({ orders: initial }: { orders: Order[] }) {
               </div>
             )}
 
-            {selected.status === "PENDING_REVIEW" && selected.depositPaid && (
-              <div className="mt-4">
-                <label className="label">Set final price ($)</label>
-                <input type="number" step="0.01" value={finalPrice} onChange={(e) => setFinalPrice(e.target.value)} className="input" placeholder={(selected.totalCents / 100).toFixed(2)} />
-                <button
-                  type="button"
-                  className="btn-primary mt-2 w-full"
-                  onClick={() =>
-                    updateStatus(selected.id, "CONFIRMED", {
-                      finalTotalCents: Math.round(parseFloat(finalPrice || String(selected.totalCents / 100)) * 100),
-                    })
-                  }
-                >
-                  Confirm order
-                </button>
-              </div>
-            )}
             {selected.status === "CONFIRMED" && (
               <div className="mt-4">
                 <label className="label">Estimated ready time</label>

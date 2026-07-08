@@ -9,9 +9,12 @@ import {
   sendOrderConfirmationFromOrder,
   sendRushApproved,
   sendRushDeclined,
+  sendOrderQuoted,
+  sendOrderQuoteDeclined,
 } from "@/lib/email";
 import { getSiteUrl } from "@/lib/site-url";
 import { RUSH_FEE_CENTS } from "@/lib/rush-order";
+import { orderHasSemiCustomItems } from "@/lib/order-semi-custom";
 
 const NOTIFY_STATUSES = ["CONFIRMED", "IN_PROGRESS", "READY", "COMPLETED", "CANCELLED"] as const;
 
@@ -22,7 +25,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const { id } = await params;
   const body = z
     .object({
-      action: z.enum(["approve_rush", "decline_rush", "mark_paid_offline"]).optional(),
+      action: z.enum(["approve_rush", "decline_rush", "approve_quote", "decline_quote", "mark_paid_offline"]).optional(),
       status: z
         .enum(["PENDING_DEPOSIT", "PENDING_REVIEW", "CONFIRMED", "IN_PROGRESS", "READY", "COMPLETED", "CANCELLED"])
         .optional(),
@@ -42,8 +45,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+  const semiCustom = await orderHasSemiCustomItems(existing.items);
+
   if (body.action === "decline_rush") {
-    if (!existing.isRush || existing.status !== "PENDING_REVIEW") {
+    if (!existing.isRush || semiCustom || existing.status !== "PENDING_REVIEW") {
       return NextResponse.json({ error: "Not a pending rush request" }, { status: 400 });
     }
     const order = await prisma.order.update({
@@ -63,8 +68,29 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json(order);
   }
 
+  if (body.action === "decline_quote") {
+    if (!semiCustom || existing.status !== "PENDING_REVIEW" || existing.depositPaid) {
+      return NextResponse.json({ error: "Not a pending custom order request" }, { status: 400 });
+    }
+    const order = await prisma.order.update({
+      where: { id },
+      data: {
+        status: "CANCELLED",
+        adminNotes: body.declineMessage ?? existing.adminNotes,
+      },
+      include: { items: true },
+    });
+    await sendOrderQuoteDeclined({
+      to: order.customerEmail,
+      customerName: order.customerName,
+      orderNumber: order.orderNumber,
+      message: body.declineMessage,
+    });
+    return NextResponse.json(order);
+  }
+
   if (body.action === "approve_rush") {
-    if (!existing.isRush || existing.status !== "PENDING_REVIEW" || existing.depositPaid) {
+    if (!existing.isRush || semiCustom || existing.status !== "PENDING_REVIEW" || existing.depositPaid) {
       return NextResponse.json({ error: "Not a pending rush request" }, { status: 400 });
     }
     const finalTotalCents = existing.totalCents + RUSH_FEE_CENTS;
@@ -90,6 +116,40 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       finalTotalCents,
       rushFeeCents: RUSH_FEE_CENTS,
       baseTotalCents: existing.totalCents,
+      paymentUrl,
+      message: body.approvalMessage,
+    });
+
+    return NextResponse.json({ ...order, paymentUrl });
+  }
+
+  if (body.action === "approve_quote") {
+    if (!semiCustom || existing.status !== "PENDING_REVIEW" || existing.depositPaid) {
+      return NextResponse.json({ error: "Not a pending custom order request" }, { status: 400 });
+    }
+    if (body.finalTotalCents == null || body.finalTotalCents < 0) {
+      return NextResponse.json({ error: "Quoted price is required" }, { status: 400 });
+    }
+    const token = randomUUID();
+    const order = await prisma.order.update({
+      where: { id },
+      data: {
+        status: "PENDING_DEPOSIT",
+        finalTotalCents: body.finalTotalCents,
+        paymentToken: token,
+        balanceDueCents: body.finalTotalCents,
+        adminNotes: body.approvalMessage ?? existing.adminNotes,
+      },
+      include: { items: true },
+    });
+
+    const siteUrl = await getSiteUrl();
+    const paymentUrl = `${siteUrl}/order/pay/${token}`;
+    await sendOrderQuoted({
+      to: order.customerEmail,
+      customerName: order.customerName,
+      orderNumber: order.orderNumber,
+      finalTotalCents: body.finalTotalCents,
       paymentUrl,
       message: body.approvalMessage,
     });
