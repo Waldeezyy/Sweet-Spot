@@ -1,12 +1,12 @@
 import Link from "next/link";
-import Image from "next/image";
 import { prisma } from "@/lib/db";
 import { StarRating } from "@/components/storefront/StarRating";
+import { GalleryCarousel } from "@/components/storefront/GalleryCarousel";
 
 export default async function HomePage() {
-  const [settings, featured, reviews, products] = await Promise.all([
+  const [settings, galleryImages, reviews, products] = await Promise.all([
     prisma.shopSettings.findFirst(),
-    prisma.galleryImage.findMany({ where: { isFeatured: true }, orderBy: { sortOrder: "asc" }, take: 4 }),
+    prisma.galleryImage.findMany({ orderBy: { sortOrder: "asc" } }),
     prisma.review.findMany({ orderBy: { createdAt: "desc" }, take: 3 }),
     prisma.product.findMany({ where: { isActive: true }, orderBy: { sortOrder: "asc" }, take: 6 }),
   ]);
@@ -39,20 +39,14 @@ export default async function HomePage() {
         <Link href="/about" className="mt-4 inline-block text-[var(--rose)] hover:underline">Read more →</Link>
       </section>
 
-      {featured.length > 0 && (
+      {galleryImages.length > 0 && (
         <section className="bg-white px-4 py-16">
           <div className="mx-auto max-w-6xl">
             <div className="flex items-end justify-between">
               <h2 className="font-[family-name:var(--font-display)] text-3xl font-bold">From the Gallery</h2>
               <Link href="/gallery" className="text-[var(--rose)] hover:underline">View all</Link>
             </div>
-            <div className="mt-8 grid grid-cols-2 gap-4 md:grid-cols-4">
-              {featured.map((img) => (
-                <div key={img.id} className="relative aspect-square overflow-hidden rounded-2xl">
-                  <Image src={img.url} alt={img.alt ?? "Bakery creation"} fill className="object-cover" unoptimized />
-                </div>
-              ))}
-            </div>
+            <GalleryCarousel images={galleryImages} />
           </div>
         </section>
       )}
