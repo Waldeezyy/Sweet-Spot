@@ -3,6 +3,11 @@ builder = "nixpacks"
 buildCommand = "npm run build"
 
 [deploy]
+preDeployCommand = ["sh scripts/railway-predeploy.sh"]
 startCommand = "sh scripts/railway-start.sh"
+healthcheckPath = "/api/health"
+healthcheckTimeout = 120
+overlapSeconds = 30
+drainingSeconds = 20
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
