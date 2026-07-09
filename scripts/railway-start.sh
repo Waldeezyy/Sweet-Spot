@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 
-if [ -n "$DATABASE_URL" ]; then
+if [ "$RUN_DB_PUSH" = "true" ]; then
   echo "Syncing database schema..."
   npx prisma db push --accept-data-loss --skip-generate
 fi
