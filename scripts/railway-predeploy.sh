@@ -6,11 +6,8 @@ if [ -z "$DATABASE_URL" ]; then
   exit 1
 fi
 
-echo "Applying database migrations..."
-npx prisma migrate deploy
-
 echo "Syncing database schema..."
-npx prisma db push --accept-data-loss
+npx prisma db push --accept-data-loss --skip-generate
 
 if [ "$RUN_DB_SEED" = "true" ]; then
   echo "Running database seed..."
