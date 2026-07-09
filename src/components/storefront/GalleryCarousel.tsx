@@ -9,14 +9,15 @@ type GalleryImage = {
   alt: string | null;
 };
 
-const AUTO_SCROLL_MS = 4000;
+const SCROLL_SPEED_PX_PER_SEC = 36;
 const RESUME_AFTER_MS = 10000;
 
 export function GalleryCarousel({ images }: { images: GalleryImage[] }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const autoScrollPausedRef = useRef(false);
-  const isAutoScrollingRef = useRef(false);
   const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const slides = images.length > 1 ? [...images, ...images] : images;
 
   const getSlideStep = useCallback(() => {
     const el = scrollRef.current;
@@ -33,27 +34,6 @@ export function GalleryCarousel({ images }: { images: GalleryImage[] }) {
     }, RESUME_AFTER_MS);
   }, []);
 
-  const advanceAuto = useCallback(() => {
-    const el = scrollRef.current;
-    if (!el || autoScrollPausedRef.current) return;
-
-    const step = getSlideStep();
-    if (!step) return;
-
-    isAutoScrollingRef.current = true;
-    const maxScroll = el.scrollWidth - el.clientWidth;
-
-    if (el.scrollLeft >= maxScroll - 2) {
-      el.scrollTo({ left: 0, behavior: "smooth" });
-    } else {
-      el.scrollBy({ left: step, behavior: "smooth" });
-    }
-
-    window.setTimeout(() => {
-      isAutoScrollingRef.current = false;
-    }, 600);
-  }, [getSlideStep]);
-
   const scrollManual = useCallback(
     (direction: "left" | "right") => {
       const el = scrollRef.current;
@@ -66,20 +46,34 @@ export function GalleryCarousel({ images }: { images: GalleryImage[] }) {
     [getSlideStep, pauseAutoScroll]
   );
 
-  const handleUserScroll = useCallback(() => {
-    if (isAutoScrollingRef.current) return;
-    pauseAutoScroll();
-  }, [pauseAutoScroll]);
-
   useEffect(() => {
-    if (images.length <= 2) return;
+    if (images.length <= 1) return;
 
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (prefersReducedMotion) return;
 
-    const intervalId = window.setInterval(advanceAuto, AUTO_SCROLL_MS);
-    return () => window.clearInterval(intervalId);
-  }, [images.length, advanceAuto]);
+    let rafId = 0;
+    let lastTime = performance.now();
+
+    const tick = (now: number) => {
+      const el = scrollRef.current;
+      if (el && !autoScrollPausedRef.current) {
+        const loopWidth = el.scrollWidth / 2;
+        if (loopWidth > 0) {
+          const deltaSec = (now - lastTime) / 1000;
+          el.scrollLeft += SCROLL_SPEED_PX_PER_SEC * deltaSec;
+          if (el.scrollLeft >= loopWidth) {
+            el.scrollLeft -= loopWidth;
+          }
+        }
+      }
+      lastTime = now;
+      rafId = requestAnimationFrame(tick);
+    };
+
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, [images.length]);
 
   useEffect(() => {
     return () => {
@@ -115,16 +109,16 @@ export function GalleryCarousel({ images }: { images: GalleryImage[] }) {
       )}
       <div
         ref={scrollRef}
-        onScroll={handleUserScroll}
         onPointerDown={pauseAutoScroll}
         onTouchStart={pauseAutoScroll}
-        className="flex gap-4 overflow-x-auto scroll-smooth pb-2 snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        onWheel={pauseAutoScroll}
+        className="flex gap-4 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
-        {images.map((img) => (
+        {slides.map((img, index) => (
           <div
-            key={img.id}
+            key={`${img.id}-${index}`}
             data-gallery-slide
-            className="relative aspect-square w-[calc(50%-8px)] shrink-0 snap-start overflow-hidden rounded-2xl md:w-[calc(25%-12px)]"
+            className="relative aspect-square w-[calc(50%-8px)] shrink-0 overflow-hidden rounded-2xl md:w-[calc(25%-12px)]"
           >
             <Image src={img.url} alt={img.alt ?? "Bakery creation"} fill className="object-cover" unoptimized />
           </div>
