@@ -10,7 +10,7 @@ export const ORDERING_PATHS = {
     href: "/custom-order",
     title: "Request a Custom Quote",
     description:
-      "Wedding cakes, themed designs, or something not on our menu. Tell us your vision and Brandy will send a quote within about 24 hours — no charge until you approve.",
+      "Wedding cakes, themed designs, or something not on our menu. Tell us your vision and Brandy will review the request and provide a quote — no charge until you approve.",
     buttonLabel: "Request a Custom Quote",
     bannerPrompt: "Don't see what you need?",
     bannerLinkLabel: "Request a custom quote",
