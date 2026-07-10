@@ -8,7 +8,11 @@ import {
   CUPCAKE_PRICING,
 } from "@/lib/cake-pricing";
 import type { OrderPortion } from "@/lib/order-portions";
-import { normalizePortionsToLegacyFields } from "@/lib/order-portions";
+import {
+  getMaxSplitCombinations,
+  getOrderUnits,
+  normalizePortionsToLegacyFields,
+} from "@/lib/order-portions";
 import { SplitPortionCustomizer } from "@/components/storefront/SplitPortionCustomizer";
 
 const CUPCAKE_FROSTINGS = ["Vanilla buttercream", "Chocolate buttercream", "Whipped"];
@@ -19,6 +23,7 @@ type Props = {
   orderType: OrderType;
   basePriceCents: number;
   maxFlavorOptions: number;
+  piecesPerOrderUnit: number;
   flavors: string[];
   onSubmit: (data: {
     flavor: string;
@@ -39,6 +44,7 @@ export function CupcakeForm({
   orderType,
   basePriceCents,
   maxFlavorOptions,
+  piecesPerOrderUnit,
   flavors,
   onSubmit,
   onCancel,
@@ -53,6 +59,10 @@ export function CupcakeForm({
 
   const pricing = CUPCAKE_PRICING[productSlug];
   const unitPriceCents = getCupcakePriceCents(productSlug, dozenCount, basePriceCents);
+  const maxSplitCombinations = getMaxSplitCombinations(
+    maxFlavorOptions,
+    getOrderUnits({ formType: "CUPCAKE", dozenCount })
+  );
 
   function handleSubmit() {
     if (orderType === "SEMI_CUSTOM" && !designNotes.trim()) {
@@ -60,7 +70,7 @@ export function CupcakeForm({
       return;
     }
 
-    if (maxFlavorOptions > 1 && portions && portions.length > 0) {
+    if (maxSplitCombinations > 1 && portions && portions.length > 0) {
       for (const p of portions) {
         if (!p.flavor?.trim()) {
           setError(`Please choose a flavor for each combination.`);
@@ -124,8 +134,8 @@ export function CupcakeForm({
       </div>
 
       <SplitPortionCustomizer
-        maxFlavorOptions={maxFlavorOptions}
-        splittableContext={{ formType: "CUPCAKE", dozenCount }}
+        maxSplitCombinations={maxSplitCombinations}
+        splittableContext={{ formType: "CUPCAKE", dozenCount, piecesPerOrderUnit }}
         config={{
           allowFlavor: true,
           allowFrosting: true,

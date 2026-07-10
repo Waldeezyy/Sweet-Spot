@@ -67,11 +67,11 @@ export default function OrderPage() {
     const e: Record<string, string> = {};
     if (step === 1 && items.length === 0) e.items = "Add at least one item to your order.";
     if (step === 1 && belowMinimum) e.items = `Add ${formatCents(minimum - subtotalCents)} more to reach the ${formatCents(minimum)} minimum.`;
-    if (step === 3) {
+    if (step === 2) {
       if (!meta.fulfillmentType) e.fulfillment = "Please choose pickup or delivery.";
       if (meta.fulfillmentType === "DELIVERY" && !meta.deliveryAddress?.trim()) e.address = "Please enter your delivery address.";
     }
-    if (step === 4) {
+    if (step === 3) {
       if (!meta.scheduledDate) e.date = "Please pick a date.";
       else if (isPastScheduledDate(meta.scheduledDate)) e.date = "Please pick today or a future date.";
       else {
@@ -79,7 +79,7 @@ export default function OrderPage() {
         if (blocked) e.date = "This date is not available. Please choose another.";
       }
     }
-    if (step === 5) {
+    if (step === 4) {
       if (!meta.customerName?.trim()) e.name = "Please enter your name.";
       if (!meta.customerEmail?.trim()) e.email = "Please enter your email.";
       if (hasMultipleContactMethods(meta.customerPhone) && !meta.preferredContactMethod) {
@@ -145,22 +145,19 @@ export default function OrderPage() {
             ))
           )}
           {errors.items && <p className="text-sm text-red-600">{errors.items}</p>}
+          {hasSemiCustom(items) && (
+            <p className="rounded-xl bg-[var(--blush)]/40 p-4 text-sm">
+              Your order includes custom items. The price shown is an estimate only — Brandy will review your order and send you a final quote within about 24 hours. You will not be charged until you review and pay the quoted price.
+            </p>
+          )}
+          <p className="text-sm text-[var(--warm-gray)]">
+            To change an item, remove it below and add again from the menu.
+          </p>
           <Link href="/menu" className="text-sm text-[var(--rose)] hover:underline">+ Add more items</Link>
         </section>
       )}
 
       {step === 2 && (
-        <section className="card mt-8">
-          <p className="text-[var(--warm-gray)]">Review your customizations above. To change an item, go back to step 1 and remove it, then add again from the menu.</p>
-          {hasSemiCustom(items) && (
-            <p className="mt-4 rounded-xl bg-[var(--blush)]/40 p-4 text-sm">
-              Your order includes custom items. The price shown is an estimate only — Brandy will review your order and send you a final quote within about 24 hours. You will not be charged until you review and pay the quoted price.
-            </p>
-          )}
-        </section>
-      )}
-
-      {step === 3 && (
         <section className="card mt-8 space-y-4">
           <div className="flex gap-4">
             {(["PICKUP", "DELIVERY"] as const).map((type) => (
@@ -195,7 +192,7 @@ export default function OrderPage() {
         </section>
       )}
 
-      {step === 4 && (
+      {step === 3 && (
         <section className="card mt-8">
           <label className="label">Pickup / delivery date</label>
           <input
@@ -215,7 +212,7 @@ export default function OrderPage() {
         </section>
       )}
 
-      {step === 5 && (
+      {step === 4 && (
         <section className="card mt-8 space-y-4">
           <div>
             <label className="label">Your name</label>
@@ -330,7 +327,7 @@ export default function OrderPage() {
         ) : (
           <span />
         )}
-        {step < 5 ? (
+        {step < 4 ? (
           <button
             type="button"
             onClick={() => validateStep() && setStep((s) => s + 1)}

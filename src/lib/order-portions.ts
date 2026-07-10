@@ -20,26 +20,29 @@ export type SplittableContext = {
 };
 
 export function getQuantityLabel(piecesPerOrderUnit: number): string {
-  if (piecesPerOrderUnit === 1) return "How many?";
-  if (piecesPerOrderUnit === 12) return "How many dozens?";
-  if (piecesPerOrderUnit === 6) return "How many half-dozens?";
-  return `How many orders? (${piecesPerOrderUnit} treats each)`;
+  if (piecesPerOrderUnit <= 1) return "How many?";
+  return `How many orders? (${piecesPerOrderUnit} pieces each)`;
 }
 
-export function getTreatUnitLabel(piecesPerOrderUnit: number): string {
-  if (piecesPerOrderUnit === 12) return "cookies";
-  if (piecesPerOrderUnit === 6) return "treats";
-  if (piecesPerOrderUnit === 1) return "treats";
-  return "treats";
+export function getTreatUnitLabel(): string {
+  return "pieces";
+}
+
+export function getOrderUnits(ctx: SplittableContext): number {
+  if (ctx.formType === "CUPCAKE") {
+    return ctx.dozenCount ?? 1;
+  }
+  return ctx.quantity ?? 1;
 }
 
 export function getTotalSplittableUnits(ctx: SplittableContext): number {
-  if (ctx.formType === "CUPCAKE") {
-    return (ctx.dozenCount ?? 1) * 12;
-  }
-  const quantity = ctx.quantity ?? 1;
+  const orderUnits = getOrderUnits(ctx);
   const piecesPerOrderUnit = ctx.piecesPerOrderUnit ?? 1;
-  return quantity * piecesPerOrderUnit;
+  return orderUnits * piecesPerOrderUnit;
+}
+
+export function getMaxSplitCombinations(maxFlavorOptions: number, orderUnits: number): number {
+  return maxFlavorOptions * orderUnits;
 }
 
 export function getPortionSize(totalUnits: number, splitCount: number): number | null {

@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { OrderPortion } from "@/lib/order-portions";
 import {
   canSplitEvenly,
+  getOrderUnits,
   getPortionSize,
   getTotalSplittableUnits,
   getTreatUnitLabel,
@@ -24,7 +25,7 @@ export type PortionCustomizationConfig = {
 };
 
 type Props = {
-  maxFlavorOptions: number;
+  maxSplitCombinations: number;
   splittableContext: {
     formType?: CategoryFormType | string;
     dozenCount?: number;
@@ -55,7 +56,7 @@ function emptyPortion(count: number): OrderPortion {
 }
 
 export function SplitPortionCustomizer({
-  maxFlavorOptions,
+  maxSplitCombinations,
   splittableContext,
   config,
   onSingleChange,
@@ -63,13 +64,19 @@ export function SplitPortionCustomizer({
   singleValues,
   portions,
 }: Props) {
+  const orderUnits = getOrderUnits(splittableContext);
   const totalUnits = getTotalSplittableUnits(splittableContext);
-  const treatLabel = getTreatUnitLabel(splittableContext.piecesPerOrderUnit ?? 1);
+  const treatLabel = getTreatUnitLabel();
   const [splitMode, setSplitMode] = useState(false);
   const [splitCount, setSplitCount] = useState(2);
 
   const portionSize = getPortionSize(totalUnits, splitCount);
   const splitError = splitMode ? splitCountError(totalUnits, splitCount) : null;
+
+  useEffect(() => {
+    setSplitMode(false);
+    setSplitCount(2);
+  }, [orderUnits, splittableContext.piecesPerOrderUnit, maxSplitCombinations]);
 
   function handleModeChange(useSplit: boolean) {
     setSplitMode(useSplit);
@@ -107,7 +114,7 @@ export function SplitPortionCustomizer({
     updatePortion(index, { [field]: next });
   }
 
-  if (maxFlavorOptions <= 1) {
+  if (maxSplitCombinations <= 1) {
     return (
       <SingleCustomizationFields
         config={config}
@@ -153,7 +160,7 @@ export function SplitPortionCustomizer({
           <div>
             <label className="label">How many combinations?</label>
             <div className="mt-2 flex flex-wrap gap-2">
-              {Array.from({ length: maxFlavorOptions - 1 }, (_, i) => i + 2).map((n) => (
+              {Array.from({ length: maxSplitCombinations - 1 }, (_, i) => i + 2).map((n) => (
                 <button
                   key={n}
                   type="button"
@@ -364,7 +371,7 @@ function SingleCustomizationFields({
 }
 
 export function validateSplitSubmission(
-  maxFlavorOptions: number,
+  maxSplitCombinations: number,
   splittableContext: Props["splittableContext"],
   config: PortionCustomizationConfig,
   singleValues: Props["singleValues"],
@@ -372,7 +379,7 @@ export function validateSplitSubmission(
   splitMode: boolean
 ): string | null {
   const totalUnits = getTotalSplittableUnits(splittableContext);
-  if (maxFlavorOptions <= 1 || !splitMode || !portions) {
+  if (maxSplitCombinations <= 1 || !splitMode || !portions) {
     if (config.allowFlavor && !singleValues.flavor?.trim()) {
       return "Please choose a flavor.";
     }

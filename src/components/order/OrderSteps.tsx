@@ -1,4 +1,4 @@
-const steps = ["Items", "Review", "Pickup/Delivery", "Date", "Pay"];
+const steps = ["Items", "Pickup/Delivery", "Date", "Pay"];
 
 export function OrderSteps({ current }: { current: number }) {
   return (

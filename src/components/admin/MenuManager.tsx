@@ -36,8 +36,8 @@ export function MenuManager({
 }) {
   const router = useRouter();
   const [products, setProducts] = useState(initial);
-  const [editing, setEditing] = useState<Product | null>(null);
-  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [showAddForm, setShowAddForm] = useState(false);
   const [toast, setToast] = useState("");
 
   function notify(msg: string) {
@@ -45,16 +45,34 @@ export function MenuManager({
     setTimeout(() => setToast(""), 3000);
   }
 
-  async function saveProduct(data: Record<string, unknown>) {
-    const res = await fetch(editing ? `/api/admin/products/${editing.id}` : "/api/admin/products", {
-      method: editing ? "PATCH" : "POST",
+  function closeForm() {
+    setEditingId(null);
+    setShowAddForm(false);
+  }
+
+  async function saveProduct(id: string | null, data: Record<string, unknown>) {
+    const res = await fetch(id ? `/api/admin/products/${id}` : "/api/admin/products", {
+      method: id ? "PATCH" : "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
     if (res.ok) {
       notify("Your changes are live!");
-      setEditing(null);
-      setShowForm(false);
+      closeForm();
+      router.refresh();
+    }
+  }
+
+  async function deleteProduct(id: string) {
+    const product = products.find((p) => p.id === id);
+    if (!product) return;
+    if (!window.confirm(`Permanently delete "${product.name}" from the menu? This cannot be undone.`)) return;
+
+    const res = await fetch(`/api/admin/products/${id}`, { method: "DELETE" });
+    if (res.ok) {
+      setProducts((prev) => prev.filter((p) => p.id !== id));
+      notify("Item deleted from menu.");
+      closeForm();
       router.refresh();
     }
   }
@@ -72,41 +90,68 @@ export function MenuManager({
   return (
     <div className="mt-8">
       {toast && <div className="mb-4 rounded-xl bg-[var(--sage)]/20 p-3 text-sm text-[var(--chocolate)]">{toast}</div>}
-      <button type="button" onClick={() => { setShowForm(true); setEditing(null); }} className="btn-primary">
+      <button
+        type="button"
+        onClick={() => { setShowAddForm(true); setEditingId(null); }}
+        className="btn-primary"
+      >
         + Add New Item
       </button>
 
-      {(showForm || editing) && (
+      {showAddForm && (
         <ProductForm
+          key="new"
           categories={categories}
-          initial={editing ?? undefined}
-          onSave={saveProduct}
-          onCancel={() => { setShowForm(false); setEditing(null); }}
+          onSave={(data) => saveProduct(null, data)}
+          onCancel={closeForm}
         />
       )}
 
       <div className="mt-8 space-y-4">
         {products.map((p) => (
-          <div key={p.id} className={`card flex flex-wrap items-center justify-between gap-4 ${!p.isActive ? "opacity-60" : ""}`}>
-            <div className="flex gap-4">
-              {p.imageUrl && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={p.imageUrl} alt="" className="h-16 w-16 rounded-lg object-cover" />
-              )}
-              <div>
-                <p className="text-xs text-[var(--warm-gray)]">{p.categoryName}</p>
-                <h3 className="font-semibold">{p.name}</h3>
-                <p className="text-sm text-[var(--rose)]">
-                  {p.isStartingPrice ? "Starting at " : ""}{formatCents(p.basePriceCents)}
-                </p>
+          <div key={p.id}>
+            <div
+              className={`card flex flex-wrap items-center justify-between gap-4 ${
+                !p.isActive ? "opacity-60" : ""
+              } ${editingId === p.id ? "border-2 border-[var(--chocolate)]" : ""}`}
+            >
+              <div className="flex gap-4">
+                {p.imageUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={p.imageUrl} alt="" className="h-16 w-16 rounded-lg object-cover" />
+                )}
+                <div>
+                  <p className="text-xs text-[var(--warm-gray)]">{p.categoryName}</p>
+                  <h3 className="font-semibold">{p.name}</h3>
+                  <p className="text-sm text-[var(--rose)]">
+                    {p.isStartingPrice ? "Starting at " : ""}{formatCents(p.basePriceCents)}
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setEditingId(p.id); setShowAddForm(false); }}
+                  className="btn-secondary text-sm"
+                >
+                  {editingId === p.id ? "Editing…" : "Edit"}
+                </button>
+                <button type="button" onClick={() => toggleActive(p.id, p.isActive)} className="btn-secondary text-sm">
+                  {p.isActive ? "Hide from menu" : "Show on menu"}
+                </button>
               </div>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={() => { setEditing(p); setShowForm(false); }} className="btn-secondary text-sm">Edit</button>
-              <button type="button" onClick={() => toggleActive(p.id, p.isActive)} className="btn-secondary text-sm">
-                {p.isActive ? "Hide from menu" : "Show on menu"}
-              </button>
-            </div>
+
+            {editingId === p.id && (
+              <ProductForm
+                key={p.id}
+                categories={categories}
+                initial={p}
+                onSave={(data) => saveProduct(p.id, data)}
+                onCancel={closeForm}
+                onDelete={() => deleteProduct(p.id)}
+              />
+            )}
           </div>
         ))}
       </div>
@@ -119,11 +164,13 @@ function ProductForm({
   initial,
   onSave,
   onCancel,
+  onDelete,
 }: {
   categories: Category[];
   initial?: Product;
   onSave: (data: Record<string, unknown>) => void;
   onCancel: () => void;
+  onDelete?: () => void;
 }) {
   const [name, setName] = useState(initial?.name ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
@@ -142,8 +189,8 @@ function ProductForm({
   const [uploading, setUploading] = useState(false);
 
   const selectedCategory = categories.find((c) => c.id === categoryId);
-  const showPiecesPerOrderUnit = selectedCategory?.formType === "SIMPLE";
   const showMaxFlavorOptions = selectedCategory?.formType !== "PARTY_PACKAGE";
+  const showPiecesPerOrderUnit = showMaxFlavorOptions && maxFlavorOptions > 1;
 
   async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -159,7 +206,7 @@ function ProductForm({
 
   return (
     <form
-      className="card mt-6 space-y-4"
+      className="card mt-2 space-y-4 border-2 border-[var(--chocolate)]/30"
       onSubmit={(e) => {
         e.preventDefault();
         onSave({
@@ -176,11 +223,11 @@ function ProductForm({
           allowFrosting,
           allowWriting,
           maxFlavorOptions: showMaxFlavorOptions ? maxFlavorOptions : 1,
-          piecesPerOrderUnit: showPiecesPerOrderUnit ? piecesPerOrderUnit : 1,
+          piecesPerOrderUnit: showMaxFlavorOptions && maxFlavorOptions > 1 ? piecesPerOrderUnit : 1,
         });
       }}
     >
-      <h3 className="font-semibold">{initial ? "Edit Item" : "Add New Item"}</h3>
+      <h3 className="font-semibold">{initial ? `Edit: ${initial.name}` : "Add New Item"}</h3>
       <div>
         <label className="label">Name</label>
         <input value={name} onChange={(e) => setName(e.target.value)} required className="input" />
@@ -253,30 +300,24 @@ function ProductForm({
             className="input max-w-[120px]"
           />
           <p className="mt-1 text-xs text-[var(--warm-gray)]">
-            How many different flavor combos a customer can split one order into. Use <strong>2</strong> for half-and-half on a dozen (6 + 6). Leave at <strong>1</strong> for normal single-flavor orders.
+            Maximum flavor combinations <strong>per</strong> order unit (see pieces field below). If you set 2 combinations and 12 pieces, a customer ordering two units (e.g. 2 dozen cupcakes or quantity 2) can split into up to <strong>4</strong> combinations. Leave at <strong>1</strong> for single-flavor orders.
           </p>
         </div>
       )}
 
       {showPiecesPerOrderUnit && (
         <div className="rounded-xl border border-[var(--blush)] bg-[var(--cream)]/50 p-4 space-y-2">
-          <label className="label">How many individual treats is quantity 1?</label>
+          <label className="label">How many pieces are in one order?</label>
           <input
             type="number"
             min={1}
             value={piecesPerOrderUnit}
             onChange={(e) => setPiecesPerOrderUnit(Math.max(1, Number(e.target.value) || 1))}
             className="input max-w-[120px]"
-            placeholder="12"
+            required
           />
           <p className="text-xs text-[var(--warm-gray)]">
-            This is the number of individual treats (cookies, mini cakes, etc.) the customer gets when they order quantity 1.
-            <br />• Type <strong>1</strong> if they order one treat at a time
-            <br />• Type <strong>12</strong> if quantity 1 means one full dozen
-            <br />• Type <strong>6</strong> if quantity 1 means a half dozen
-          </p>
-          <p className="text-xs text-[var(--warm-gray)]">
-            <strong>Example:</strong> Cake cookies sold by the dozen → type <strong>12</strong>. If max combinations is 2, a customer ordering quantity 1 gets 12 cookies and can split <strong>6 + 6</strong>.
+            How many individual treats count as one order unit for splitting — e.g. <strong>12</strong> for a dozen. Free number; no presets.
           </p>
         </div>
       )}
@@ -284,9 +325,14 @@ function ProductForm({
       <p className="text-xs text-[var(--warm-gray)]">
         Cupcake, round cake, sheet cake, and party categories use their own order forms. Size/dozen pricing follows your flyer tiers.
       </p>
-      <div className="flex gap-3">
+      <div className="flex flex-wrap gap-3">
         <button type="submit" className="btn-primary">Save changes</button>
         <button type="button" onClick={onCancel} className="btn-secondary">Cancel</button>
+        {onDelete && (
+          <button type="button" onClick={onDelete} className="btn-secondary text-red-600">
+            Delete from menu
+          </button>
+        )}
       </div>
     </form>
   );

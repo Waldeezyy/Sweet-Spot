@@ -13,7 +13,12 @@ import { RoundCakeForm } from "@/components/storefront/RoundCakeForm";
 import { SheetCakeForm } from "@/components/storefront/SheetCakeForm";
 import { SplitPortionCustomizer } from "@/components/storefront/SplitPortionCustomizer";
 import type { OrderPortion } from "@/lib/order-portions";
-import { getQuantityLabel, normalizePortionsToLegacyFields } from "@/lib/order-portions";
+import {
+  getMaxSplitCombinations,
+  getOrderUnits,
+  getQuantityLabel,
+  normalizePortionsToLegacyFields,
+} from "@/lib/order-portions";
 
 type Props = {
   product: {
@@ -117,6 +122,7 @@ export function AddToOrderButton({
         orderType={product.orderType}
         basePriceCents={product.basePriceCents}
         maxFlavorOptions={product.maxFlavorOptions}
+        piecesPerOrderUnit={product.piecesPerOrderUnit}
         flavors={flavors}
         onSubmit={(data) => {
           addItem({
@@ -251,6 +257,10 @@ function LegacyCakeForm({
   const [error, setError] = useState("");
 
   const frostings = ["Buttercream", "Whipped"];
+  const maxSplitCombinations = getMaxSplitCombinations(
+    product.maxFlavorOptions,
+    getOrderUnits({ formType: "SIMPLE", quantity })
+  );
 
   function handleAddCake() {
     if (product.orderType === "SEMI_CUSTOM" && !designNotes.trim()) {
@@ -330,13 +340,13 @@ function LegacyCakeForm({
         />
         {product.piecesPerOrderUnit > 1 && (
           <p className="mt-1 text-xs text-[var(--warm-gray)]">
-            Each order = {product.piecesPerOrderUnit} treats ({quantity * product.piecesPerOrderUnit} total)
+            Each order = {product.piecesPerOrderUnit} pieces ({quantity * product.piecesPerOrderUnit} total)
           </p>
         )}
       </div>
 
       <SplitPortionCustomizer
-        maxFlavorOptions={product.maxFlavorOptions}
+        maxSplitCombinations={maxSplitCombinations}
         splittableContext={{
           formType: "SIMPLE",
           quantity,
