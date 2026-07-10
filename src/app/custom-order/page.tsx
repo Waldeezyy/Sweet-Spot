@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { ORDERING_PATHS } from "@/lib/ordering-paths";
 
 export default function CustomOrderPage() {
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
@@ -59,6 +60,13 @@ export default function CustomOrderPage() {
     <div className="mx-auto max-w-xl px-4 py-12">
       <h1 className="font-[family-name:var(--font-display)] text-4xl font-bold">Custom Order Request</h1>
       <p className="mt-2 text-[var(--warm-gray)]">Tell us about your vision — we&apos;ll send you a personalized quote.</p>
+      <p className="mt-2 text-sm text-[var(--warm-gray)]">
+        {ORDERING_PATHS.crossLinks.menuFromCustom}{" "}
+        <Link href="/menu" className="text-[var(--rose)] hover:underline">
+          {ORDERING_PATHS.crossLinks.menuFromCustomLink}
+        </Link>
+        .
+      </p>
       <form onSubmit={handleSubmit} className="card mt-8 space-y-4">
         <div>
           <label className="label">What&apos;s the occasion?</label>

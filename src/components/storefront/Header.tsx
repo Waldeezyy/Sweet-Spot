@@ -3,6 +3,7 @@ import { CartButton } from "@/components/storefront/CartButton";
 
 const links = [
   { href: "/menu", label: "Menu" },
+  { href: "/custom-order", label: "Custom Orders" },
   { href: "/gallery", label: "Gallery" },
   { href: "/reviews", label: "Reviews" },
   { href: "/about", label: "About" },
@@ -25,9 +26,6 @@ export async function Header() {
         </nav>
         <div className="flex items-center gap-3">
           <CartButton />
-          <Link href="/order" className="btn-primary hidden text-sm sm:inline-flex">
-            Order Now
-          </Link>
         </div>
       </div>
       <nav className="flex gap-4 overflow-x-auto border-t border-[var(--blush)] px-4 py-2 md:hidden">

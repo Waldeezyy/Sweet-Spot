@@ -17,8 +17,8 @@ export async function Footer() {
           <h4 className="font-semibold">Quick Links</h4>
           <ul className="mt-2 space-y-1 text-sm text-[var(--warm-gray)]">
             <li><Link href="/menu" className="hover:text-[var(--chocolate)]">Menu</Link></li>
-            <li><Link href="/custom-order" className="hover:text-[var(--chocolate)]">Custom Orders</Link></li>
-            <li><Link href="/order" className="hover:text-[var(--chocolate)]">Place an Order</Link></li>
+            <li><Link href="/order" className="hover:text-[var(--chocolate)]">Checkout / Cart</Link></li>
+            <li><Link href="/custom-order" className="hover:text-[var(--chocolate)]">Custom Quote Request</Link></li>
             <li><Link href="/order/track" className="hover:text-[var(--chocolate)]">Track Order</Link></li>
           </ul>
         </div>

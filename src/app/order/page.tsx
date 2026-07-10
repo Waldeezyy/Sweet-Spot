@@ -10,6 +10,7 @@ import { formatCartItemDetails } from "@/lib/order-item-display";
 import { OrderSteps } from "@/components/order/OrderSteps";
 import { RushOrderNotice } from "@/components/order/RushOrderNotice";
 import { isPastScheduledDate, isRushOrderDate, RUSH_FEE_CENTS, todayDateInputValue } from "@/lib/rush-order";
+import { ORDERING_PATHS } from "@/lib/ordering-paths";
 
 type Settings = {
   orderMinimumCents: number;
@@ -106,15 +107,21 @@ export default function OrderPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-12">
-      <h1 className="font-[family-name:var(--font-display)] text-4xl font-bold">Place Your Order</h1>
+      <h1 className="font-[family-name:var(--font-display)] text-4xl font-bold">{ORDERING_PATHS.checkout.title}</h1>
       <OrderSteps current={step} />
 
       {step === 1 && (
         <section className="mt-8 space-y-4">
           {items.length === 0 ? (
             <div className="card text-center">
-              <p className="text-[var(--warm-gray)]">Your cart is empty.</p>
+              <p className="text-[var(--warm-gray)]">{ORDERING_PATHS.checkout.emptyCartMenuPrompt}</p>
               <Link href="/menu" className="btn-primary mt-4 inline-flex">Browse Menu</Link>
+              <p className="mt-4 text-sm text-[var(--warm-gray)]">
+                {ORDERING_PATHS.crossLinks.customFromCheckout}{" "}
+                <Link href={ORDERING_PATHS.custom.href} className="text-[var(--rose)] hover:underline">
+                  {ORDERING_PATHS.crossLinks.customFromCheckoutLink} →
+                </Link>
+              </p>
             </div>
           ) : (
             items.map((item) => (

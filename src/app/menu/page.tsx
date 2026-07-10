@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { formatCents } from "@/lib/utils";
+import { CustomQuoteBanner } from "@/components/storefront/CustomQuoteBanner";
 
 export default async function MenuPage() {
   const categories = await prisma.category.findMany({
@@ -13,12 +14,12 @@ export default async function MenuPage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-12">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="font-[family-name:var(--font-display)] text-4xl font-bold">Our Menu</h1>
-          <p className="mt-2 text-[var(--warm-gray)]">All items made fresh to order</p>
-        </div>
-        <Link href="/custom-order" className="btn-secondary text-sm">Custom Order Request</Link>
+      <div>
+        <h1 className="font-[family-name:var(--font-display)] text-4xl font-bold">Our Menu</h1>
+        <p className="mt-2 text-[var(--warm-gray)]">
+          All items are made fresh to order. Choose what you&apos;d like, add it to your cart, and check out when you&apos;re ready.
+        </p>
+        <CustomQuoteBanner />
       </div>
 
       <div className="mt-12 space-y-12">

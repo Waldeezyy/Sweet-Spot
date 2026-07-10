@@ -2,6 +2,8 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { StarRating } from "@/components/storefront/StarRating";
 import { GalleryCarousel } from "@/components/storefront/GalleryCarousel";
+import { OrderPathCards } from "@/components/storefront/OrderPathCards";
+import { ORDERING_PATHS } from "@/lib/ordering-paths";
 
 export default async function HomePage() {
   const [settings, galleryImages, reviews, products] = await Promise.all([
@@ -24,10 +26,7 @@ export default async function HomePage() {
           <p className="mx-auto mt-4 max-w-2xl text-lg text-[var(--warm-gray)]">
             {settings?.tagline ?? "Made-to-order cakes & treats crafted with love"}
           </p>
-          <div className="mt-8 flex flex-wrap justify-center gap-4">
-            <Link href="/order" className="btn-primary">Request Order</Link>
-            <Link href="/menu" className="btn-secondary">View Menu</Link>
-          </div>
+          <OrderPathCards />
         </div>
       </section>
 
@@ -71,9 +70,11 @@ export default async function HomePage() {
         <div className="mx-auto max-w-6xl text-center">
           <h2 className="font-[family-name:var(--font-display)] text-3xl font-bold">Something Special in Mind?</h2>
           <p className="mx-auto mt-4 max-w-xl text-[var(--warm-gray)]">
-            Wedding cakes, themed designs, or one-of-a-kind creations — tell us your vision and we&apos;ll send you a quote.
+            Have a unique idea in mind? We love one-of-a-kind creations.
           </p>
-          <Link href="/custom-order" className="btn-primary mt-6">Request a Custom Order</Link>
+          <Link href={ORDERING_PATHS.custom.href} className="btn-primary mt-6">
+            {ORDERING_PATHS.custom.buttonLabel}
+          </Link>
         </div>
       </section>
 
