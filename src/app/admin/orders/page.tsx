@@ -59,6 +59,7 @@ export default async function AdminOrdersPage() {
             frosting: i.frosting,
             toppings: i.toppings,
             designNotes: i.designNotes,
+            portions: i.portions,
           })),
         }))}
       />

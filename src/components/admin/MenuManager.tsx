@@ -14,15 +14,18 @@ type Product = {
   isActive: boolean;
   categoryId: string;
   categoryName: string;
+  categoryFormType: string;
   imageUrl: string | null;
   sortOrder: number;
   allowFlavor: boolean;
   allowTopping: boolean;
   allowFrosting: boolean;
   allowWriting: boolean;
+  maxFlavorOptions: number;
+  piecesPerOrderUnit: number;
 };
 
-type Category = { id: string; name: string };
+type Category = { id: string; name: string; formType: string };
 
 export function MenuManager({
   categories,
@@ -134,7 +137,13 @@ function ProductForm({
   const [allowTopping, setAllowTopping] = useState(initial?.allowTopping ?? true);
   const [allowFrosting, setAllowFrosting] = useState(initial?.allowFrosting ?? true);
   const [allowWriting, setAllowWriting] = useState(initial?.allowWriting ?? true);
+  const [maxFlavorOptions, setMaxFlavorOptions] = useState(initial?.maxFlavorOptions ?? 1);
+  const [piecesPerOrderUnit, setPiecesPerOrderUnit] = useState(initial?.piecesPerOrderUnit ?? 1);
   const [uploading, setUploading] = useState(false);
+
+  const selectedCategory = categories.find((c) => c.id === categoryId);
+  const showPiecesPerOrderUnit = selectedCategory?.formType === "SIMPLE";
+  const showMaxFlavorOptions = selectedCategory?.formType !== "PARTY_PACKAGE";
 
   async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -166,6 +175,8 @@ function ProductForm({
           allowTopping,
           allowFrosting,
           allowWriting,
+          maxFlavorOptions: showMaxFlavorOptions ? maxFlavorOptions : 1,
+          piecesPerOrderUnit: showPiecesPerOrderUnit ? piecesPerOrderUnit : 1,
         });
       }}
     >
@@ -229,6 +240,47 @@ function ProductForm({
           <input type="checkbox" checked={allowWriting} onChange={(e) => setAllowWriting(e.target.checked)} /> Writing on top
         </label>
       </fieldset>
+
+      {showMaxFlavorOptions && (
+        <div>
+          <label className="label">Maximum flavor combinations</label>
+          <input
+            type="number"
+            min={1}
+            max={6}
+            value={maxFlavorOptions}
+            onChange={(e) => setMaxFlavorOptions(Math.max(1, Number(e.target.value) || 1))}
+            className="input max-w-[120px]"
+          />
+          <p className="mt-1 text-xs text-[var(--warm-gray)]">
+            How many different flavor combos a customer can split one order into. Use <strong>2</strong> for half-and-half on a dozen (6 + 6). Leave at <strong>1</strong> for normal single-flavor orders.
+          </p>
+        </div>
+      )}
+
+      {showPiecesPerOrderUnit && (
+        <div className="rounded-xl border border-[var(--blush)] bg-[var(--cream)]/50 p-4 space-y-2">
+          <label className="label">How many individual treats is quantity 1?</label>
+          <input
+            type="number"
+            min={1}
+            value={piecesPerOrderUnit}
+            onChange={(e) => setPiecesPerOrderUnit(Math.max(1, Number(e.target.value) || 1))}
+            className="input max-w-[120px]"
+            placeholder="12"
+          />
+          <p className="text-xs text-[var(--warm-gray)]">
+            This is the number of individual treats (cookies, mini cakes, etc.) the customer gets when they order quantity 1.
+            <br />• Type <strong>1</strong> if they order one treat at a time
+            <br />• Type <strong>12</strong> if quantity 1 means one full dozen
+            <br />• Type <strong>6</strong> if quantity 1 means a half dozen
+          </p>
+          <p className="text-xs text-[var(--warm-gray)]">
+            <strong>Example:</strong> Cake cookies sold by the dozen → type <strong>12</strong>. If max combinations is 2, a customer ordering quantity 1 gets 12 cookies and can split <strong>6 + 6</strong>.
+          </p>
+        </div>
+      )}
+
       <p className="text-xs text-[var(--warm-gray)]">
         Cupcake, round cake, sheet cake, and party categories use their own order forms. Size/dozen pricing follows your flyer tiers.
       </p>

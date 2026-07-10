@@ -14,6 +14,7 @@ export type OrderEmailItem = {
   toppings?: string | null;
   writing?: string | null;
   designNotes?: string | null;
+  portions?: unknown;
 };
 
 function fulfillmentLabel(type: FulfillmentType): string {

@@ -22,6 +22,27 @@ import {
   normalizePreferredContact,
   preferredContactMethodSchema,
 } from "@/lib/preferred-contact";
+import { normalizePortionsToLegacyFields } from "@/lib/order-portions";
+
+function mapCartItemToOrderItem(item: CartItem) {
+  const legacyFromPortions =
+    item.portions?.length ? normalizePortionsToLegacyFields(item.portions) : null;
+  return {
+    productId: item.productId,
+    productName: item.productName,
+    productSlug: item.productSlug,
+    unitPriceCents: item.unitPriceCents,
+    quantity: item.quantity,
+    flavor: legacyFromPortions?.flavor ?? item.flavor,
+    frosting: legacyFromPortions?.frosting ?? item.frosting,
+    toppings: legacyFromPortions?.toppings ?? item.toppings?.join(", ") ?? item.addOns?.join(", "),
+    writing: legacyFromPortions?.writing ?? item.writing,
+    designNotes: item.designNotes,
+    allergyNotes: item.allergyNotes,
+    inspirationPhotos: item.inspirationPhotos ?? [],
+    portions: item.portions?.length ? item.portions : undefined,
+  };
+}
 
 const schema = z.object({
   items: z.array(z.any()),
@@ -96,20 +117,7 @@ export async function POST(req: Request) {
         paidInFull: false,
         depositPaid: false,
         items: {
-          create: (items as CartItem[]).map((item) => ({
-            productId: item.productId,
-            productName: item.productName,
-            productSlug: item.productSlug,
-            unitPriceCents: item.unitPriceCents,
-            quantity: item.quantity,
-            flavor: item.flavor,
-            frosting: item.frosting,
-            toppings: item.toppings?.join(", "),
-            writing: item.writing,
-            designNotes: item.designNotes,
-            allergyNotes: item.allergyNotes,
-            inspirationPhotos: item.inspirationPhotos ?? [],
-          })),
+          create: (items as CartItem[]).map((item) => mapCartItemToOrderItem(item)),
         },
       },
       include: { items: true },
@@ -199,20 +207,7 @@ export async function POST(req: Request) {
       balanceDueCents: payment.balanceDueCents,
       paidInFull: payment.paidInFull,
       items: {
-        create: (items as CartItem[]).map((item) => ({
-          productId: item.productId,
-          productName: item.productName,
-          productSlug: item.productSlug,
-          unitPriceCents: item.unitPriceCents,
-          quantity: item.quantity,
-          flavor: item.flavor,
-          frosting: item.frosting,
-          toppings: item.toppings?.join(", "),
-          writing: item.writing,
-          designNotes: item.designNotes,
-          allergyNotes: item.allergyNotes,
-          inspirationPhotos: item.inspirationPhotos ?? [],
-        })),
+        create: (items as CartItem[]).map((item) => mapCartItemToOrderItem(item)),
       },
     },
     include: { items: true },

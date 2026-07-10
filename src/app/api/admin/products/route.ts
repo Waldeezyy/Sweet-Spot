@@ -18,6 +18,8 @@ const schema = z.object({
   allowTopping: z.boolean().optional(),
   allowFrosting: z.boolean().optional(),
   allowWriting: z.boolean().optional(),
+  maxFlavorOptions: z.number().int().min(1).max(6).optional(),
+  piecesPerOrderUnit: z.number().int().min(1).optional(),
 });
 
 export async function POST(req: Request) {

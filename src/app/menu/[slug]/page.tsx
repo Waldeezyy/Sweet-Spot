@@ -137,6 +137,8 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
             allowTopping: product.allowTopping,
             allowFrosting: product.allowFrosting,
             allowWriting: product.allowWriting,
+            maxFlavorOptions: product.maxFlavorOptions,
+            piecesPerOrderUnit: product.piecesPerOrderUnit,
           }}
           categorySlug={product.category.slug}
           categoryFormType={product.category.formType}

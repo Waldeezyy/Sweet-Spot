@@ -67,6 +67,8 @@ type ProductSeed = {
   allowTopping?: boolean;
   allowFrosting?: boolean;
   allowWriting?: boolean;
+  maxFlavorOptions?: number;
+  piecesPerOrderUnit?: number;
 };
 
 const PARTY_NO_CAKE_OPTIONS = {
@@ -108,7 +110,7 @@ const products: ProductSeed[] = [
   { name: "Large Party Package", slug: "large-party-package", description: PARTY_PRODUCT_PATCHES["large-party-package"].description, basePriceCents: 16000, categorySlug: "party-packages", sortOrder: 12, orderType: "STANDARD", ...PARTY_NO_CAKE_OPTIONS },
   { name: "Create Your Own Party Pack!", slug: "your-party-package", description: PARTY_PRODUCT_PATCHES["your-party-package"].description, basePriceCents: 18000, isStartingPrice: true, orderType: "SEMI_CUSTOM", categorySlug: "party-packages", sortOrder: 13, ...PARTY_NO_CAKE_OPTIONS },
   { name: "Mini Cake (5.5oz foil loaf pan)", slug: "mini-cake", description: "Single-serve mini cakes in foil loaf pans. Perfect for game nights and individual treats.", basePriceCents: 2500, isStartingPrice: true, categorySlug: "mini-cakes", sortOrder: 14, orderType: "STANDARD" },
-  { name: "Basic Cake Cookies", slug: "basic-cake-cookies", description: "Delicious cake-style cookies in classic flavors.", basePriceCents: 2000, categorySlug: "cookies", sortOrder: 15, orderType: "STANDARD" },
+  { name: "Basic Cake Cookies", slug: "basic-cake-cookies", description: "Delicious cake-style cookies in classic flavors.", basePriceCents: 2000, categorySlug: "cookies", sortOrder: 15, orderType: "STANDARD", maxFlavorOptions: 2, piecesPerOrderUnit: 12 },
   { name: "Premium Cake Cookies", slug: "premium-cake-cookies", description: "Any flavor, any toppings. Premium decorated cake cookies.", basePriceCents: 4000, categorySlug: "cookies", sortOrder: 16, orderType: "STANDARD" },
 ];
 
@@ -169,6 +171,8 @@ export async function seedDatabase() {
         allowTopping: p.allowTopping ?? true,
         allowFrosting: p.allowFrosting ?? true,
         allowWriting: p.allowWriting ?? true,
+        maxFlavorOptions: p.maxFlavorOptions ?? 1,
+        piecesPerOrderUnit: p.piecesPerOrderUnit ?? 1,
       },
     });
   }

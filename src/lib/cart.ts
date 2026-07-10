@@ -1,4 +1,5 @@
 import type { OrderType } from "@prisma/client";
+import type { OrderPortion } from "@/lib/order-portions";
 
 export type CartItem = {
   id: string;
@@ -21,6 +22,7 @@ export type CartItem = {
   cakeSize?: string;
   dozenCount?: number;
   addOns?: string[];
+  portions?: OrderPortion[];
 };
 
 export type CartState = {

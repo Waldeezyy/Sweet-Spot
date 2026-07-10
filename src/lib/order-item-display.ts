@@ -1,8 +1,12 @@
 import { isPartyPackage, formatPartyItemSummary, isPartyProductSlug } from "@/lib/party-packages";
 import { isCakeCategory, formatCakeItemSummary } from "@/lib/cake-pricing";
 import type { CartItem } from "@/lib/cart";
+import { formatPortionsForDisplay } from "@/lib/order-portions";
 
 export function formatCartItemDetails(item: CartItem): string[] {
+  if (item.portions?.length) {
+    return formatPortionsForDisplay(item.portions);
+  }
   if (isPartyPackage(item.categorySlug ?? "") || item.treatTypes?.length) {
     return formatPartyItemSummary({
       flavor: item.treatTypes?.join(", ") ?? item.flavor,
@@ -43,16 +47,26 @@ export function formatOrderItemLine(item: {
   toppings?: string | null;
   writing?: string | null;
   designNotes?: string | null;
+  portions?: unknown;
 }): string {
+  const portionLines =
+    Array.isArray(item.portions) && item.portions.length > 0
+      ? formatPortionsForDisplay(item.portions as import("@/lib/order-portions").OrderPortion[])
+      : null;
+
   if (item.productSlug && isPartyProductSlug(item.productSlug)) {
     const details = formatPartyItemSummary(item);
     return `${item.productName} × ${item.quantity}${details.length ? ` — ${details.join(" · ")}` : ""}`;
   }
   const parts = [`${item.productName} × ${item.quantity}`];
-  if (item.flavor) parts.push(`Flavor: ${item.flavor}`);
-  if (item.frosting) parts.push(`Frosting: ${item.frosting}`);
-  if (item.toppings) parts.push(`Add-ons: ${item.toppings}`);
-  if (item.writing) parts.push(`Writing: ${item.writing}`);
+  if (portionLines?.length) {
+    parts.push(portionLines.join(" · "));
+  } else {
+    if (item.flavor) parts.push(`Flavor: ${item.flavor}`);
+    if (item.frosting) parts.push(`Frosting: ${item.frosting}`);
+    if (item.toppings) parts.push(`Add-ons: ${item.toppings}`);
+    if (item.writing) parts.push(`Writing: ${item.writing}`);
+  }
   if (item.designNotes) parts.push(item.designNotes);
   return parts.join(" — ");
 }

@@ -17,7 +17,7 @@ export default async function AdminMenuPage() {
       <h1 className="font-[family-name:var(--font-display)] text-3xl font-bold">My Menu</h1>
       <p className="mt-2 text-[var(--warm-gray)]">Add, edit, or hide menu items. Changes go live immediately.</p>
       <MenuManager
-        categories={categories.map((c) => ({ id: c.id, name: c.name }))}
+        categories={categories.map((c) => ({ id: c.id, name: c.name, formType: c.formType }))}
         products={products.map((p) => ({
           id: p.id,
           name: p.name,
@@ -28,12 +28,15 @@ export default async function AdminMenuPage() {
           isActive: p.isActive,
           categoryId: p.categoryId,
           categoryName: p.category.name,
+          categoryFormType: p.category.formType,
           imageUrl: p.imageUrl,
           sortOrder: p.sortOrder,
           allowFlavor: p.allowFlavor,
           allowTopping: p.allowTopping,
           allowFrosting: p.allowFrosting,
           allowWriting: p.allowWriting,
+          maxFlavorOptions: p.maxFlavorOptions,
+          piecesPerOrderUnit: p.piecesPerOrderUnit,
         }))}
       />
     </div>

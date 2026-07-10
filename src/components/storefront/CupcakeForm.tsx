@@ -7,12 +7,18 @@ import {
   getCupcakePriceCents,
   CUPCAKE_PRICING,
 } from "@/lib/cake-pricing";
+import type { OrderPortion } from "@/lib/order-portions";
+import { normalizePortionsToLegacyFields } from "@/lib/order-portions";
+import { SplitPortionCustomizer } from "@/components/storefront/SplitPortionCustomizer";
+
+const CUPCAKE_FROSTINGS = ["Vanilla buttercream", "Chocolate buttercream", "Whipped"];
 
 type Props = {
   productSlug: string;
   productName: string;
   orderType: OrderType;
   basePriceCents: number;
+  maxFlavorOptions: number;
   flavors: string[];
   onSubmit: (data: {
     flavor: string;
@@ -22,18 +28,28 @@ type Props = {
     allergyNotes: string;
     unitPriceCents: number;
     displayName: string;
+    portions?: OrderPortion[];
   }) => void;
   onCancel: () => void;
 };
 
-export function CupcakeForm({ productSlug, productName, orderType, basePriceCents, flavors, onSubmit, onCancel }: Props) {
-  const flavorOptions = flavors;
-  const [flavor, setFlavor] = useState(flavorOptions[0] ?? "");
-  const [frosting, setFrosting] = useState("Vanilla buttercream");
+export function CupcakeForm({
+  productSlug,
+  productName,
+  orderType,
+  basePriceCents,
+  maxFlavorOptions,
+  flavors,
+  onSubmit,
+  onCancel,
+}: Props) {
   const [dozenCount, setDozenCount] = useState<1 | 2>(1);
   const [designNotes, setDesignNotes] = useState("");
   const [allergyNotes, setAllergyNotes] = useState("");
   const [error, setError] = useState("");
+  const [singleFlavor, setSingleFlavor] = useState(flavors[0] ?? "");
+  const [singleFrosting, setSingleFrosting] = useState(CUPCAKE_FROSTINGS[0]);
+  const [portions, setPortions] = useState<OrderPortion[] | null>(null);
 
   const pricing = CUPCAKE_PRICING[productSlug];
   const unitPriceCents = getCupcakePriceCents(productSlug, dozenCount, basePriceCents);
@@ -43,10 +59,37 @@ export function CupcakeForm({ productSlug, productName, orderType, basePriceCent
       setError("Please describe your custom colors, toppers, or theme.");
       return;
     }
+
+    if (maxFlavorOptions > 1 && portions && portions.length > 0) {
+      for (const p of portions) {
+        if (!p.flavor?.trim()) {
+          setError(`Please choose a flavor for each combination.`);
+          return;
+        }
+      }
+      const legacy = normalizePortionsToLegacyFields(portions);
+      setError("");
+      onSubmit({
+        flavor: legacy.flavor,
+        frosting: legacy.frosting ?? singleFrosting,
+        dozenCount,
+        designNotes: designNotes.trim(),
+        allergyNotes: allergyNotes.trim(),
+        unitPriceCents,
+        displayName: `${productName} (${dozenCount} dozen)`,
+        portions,
+      });
+      return;
+    }
+
+    if (!singleFlavor.trim()) {
+      setError("Please choose a flavor.");
+      return;
+    }
     setError("");
     onSubmit({
-      flavor,
-      frosting,
+      flavor: singleFlavor,
+      frosting: singleFrosting,
       dozenCount,
       designNotes: designNotes.trim(),
       allergyNotes: allergyNotes.trim(),
@@ -66,7 +109,10 @@ export function CupcakeForm({ productSlug, productName, orderType, basePriceCent
             <button
               key={d}
               type="button"
-              onClick={() => setDozenCount(d)}
+              onClick={() => {
+                setDozenCount(d);
+                setPortions(null);
+              }}
               className={`rounded-xl border-2 px-4 py-2 text-sm font-medium ${
                 dozenCount === d ? "border-[var(--chocolate)] bg-[var(--blush)]/30" : "border-[var(--blush)]"
               }`}
@@ -77,23 +123,28 @@ export function CupcakeForm({ productSlug, productName, orderType, basePriceCent
         </div>
       </div>
 
-      <div>
-        <label className="label">Flavor</label>
-        <select value={flavor} onChange={(e) => setFlavor(e.target.value)} className="input">
-          {flavorOptions.map((f) => (
-            <option key={f} value={f}>{f}</option>
-          ))}
-        </select>
-      </div>
-
-      <div>
-        <label className="label">Frosting</label>
-        <select value={frosting} onChange={(e) => setFrosting(e.target.value)} className="input">
-          <option>Vanilla buttercream</option>
-          <option>Chocolate buttercream</option>
-          <option>Whipped</option>
-        </select>
-      </div>
+      <SplitPortionCustomizer
+        maxFlavorOptions={maxFlavorOptions}
+        splittableContext={{ formType: "CUPCAKE", dozenCount }}
+        config={{
+          allowFlavor: true,
+          allowFrosting: true,
+          allowTopping: false,
+          allowWriting: false,
+          flavors,
+          frostings: CUPCAKE_FROSTINGS,
+          toppings: [],
+        }}
+        singleValues={{ flavor: singleFlavor, frosting: singleFrosting }}
+        onSingleChange={(data) => {
+          if (data.flavor !== undefined) setSingleFlavor(data.flavor);
+          if (data.frosting !== undefined) setSingleFrosting(data.frosting);
+        }}
+        portions={portions}
+        onPortionsChange={(next) => {
+          setPortions(next);
+        }}
+      />
 
       {orderType === "SEMI_CUSTOM" && (
         <div>

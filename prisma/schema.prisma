@@ -119,8 +119,10 @@ model Product {
   sortOrder       Int         @default(0)
   allowFlavor     Boolean     @default(true)
   allowTopping    Boolean     @default(true)
-  allowFrosting   Boolean     @default(true)
-  allowWriting    Boolean     @default(true)
+  allowFrosting     Boolean     @default(true)
+  allowWriting      Boolean     @default(true)
+  maxFlavorOptions  Int         @default(1)
+  piecesPerOrderUnit Int        @default(1)
   categoryId      String
   category        Category    @relation(fields: [categoryId], references: [id])
   createdAt       DateTime    @default(now())
@@ -263,6 +265,7 @@ model OrderItem {
   designNotes       String?  @db.Text
   allergyNotes      String?  @db.Text
   inspirationPhotos String[] @default([])
+  portions          Json?
 }
 
 model QuoteRequest {

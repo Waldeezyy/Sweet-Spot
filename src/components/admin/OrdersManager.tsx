@@ -17,6 +17,7 @@ type OrderItem = {
   frosting: string | null;
   toppings: string | null;
   designNotes: string | null;
+  portions?: unknown;
 };
 
 type Order = {

@@ -11,6 +11,9 @@ import { PartyPackageForm } from "@/components/storefront/PartyPackageForm";
 import { CupcakeForm } from "@/components/storefront/CupcakeForm";
 import { RoundCakeForm } from "@/components/storefront/RoundCakeForm";
 import { SheetCakeForm } from "@/components/storefront/SheetCakeForm";
+import { SplitPortionCustomizer } from "@/components/storefront/SplitPortionCustomizer";
+import type { OrderPortion } from "@/lib/order-portions";
+import { getQuantityLabel, normalizePortionsToLegacyFields } from "@/lib/order-portions";
 
 type Props = {
   product: {
@@ -23,6 +26,8 @@ type Props = {
     allowTopping: boolean;
     allowFrosting: boolean;
     allowWriting: boolean;
+    maxFlavorOptions: number;
+    piecesPerOrderUnit: number;
   };
   categorySlug: string;
   categoryFormType: CategoryFormType;
@@ -111,6 +116,7 @@ export function AddToOrderButton({
         productName={product.name}
         orderType={product.orderType}
         basePriceCents={product.basePriceCents}
+        maxFlavorOptions={product.maxFlavorOptions}
         flavors={flavors}
         onSubmit={(data) => {
           addItem({
@@ -127,6 +133,7 @@ export function AddToOrderButton({
             dozenCount: data.dozenCount,
             designNotes: data.designNotes || undefined,
             allergyNotes: data.allergyNotes || undefined,
+            portions: data.portions,
           });
           setOpen(false);
           router.push("/order");
@@ -233,15 +240,59 @@ function LegacyCakeForm({
 }) {
   const router = useRouter();
   const { addItem } = useCart();
-  const [flavor, setFlavor] = useState(flavors[0] ?? "");
-  const [frosting, setFrosting] = useState("Buttercream");
-  const [selectedToppings, setSelectedToppings] = useState<string[]>([]);
-  const [writing, setWriting] = useState("");
+  const [singleFlavor, setSingleFlavor] = useState(flavors[0] ?? "");
+  const [singleFrosting, setSingleFrosting] = useState("Buttercream");
+  const [singleToppings, setSingleToppings] = useState<string[]>([]);
+  const [singleWriting, setSingleWriting] = useState("");
   const [designNotes, setDesignNotes] = useState("");
   const [allergyNotes, setAllergyNotes] = useState("");
   const [quantity, setQuantity] = useState(1);
+  const [portions, setPortions] = useState<OrderPortion[] | null>(null);
+  const [error, setError] = useState("");
+
+  const frostings = ["Buttercream", "Whipped"];
 
   function handleAddCake() {
+    if (product.orderType === "SEMI_CUSTOM" && !designNotes.trim()) {
+      setError("Please describe your design or theme.");
+      return;
+    }
+
+    if (portions && portions.length > 0) {
+      for (const p of portions) {
+        if (product.allowFlavor && !p.flavor?.trim()) {
+          setError("Please choose a flavor for each combination.");
+          return;
+        }
+      }
+      const legacy = normalizePortionsToLegacyFields(portions);
+      addItem({
+        id: crypto.randomUUID(),
+        productId: product.id,
+        productName: product.name,
+        productSlug: product.slug,
+        categorySlug,
+        orderType: product.orderType,
+        unitPriceCents: product.basePriceCents,
+        quantity,
+        flavor: legacy.flavor,
+        frosting: legacy.frosting,
+        toppings: legacy.toppings?.split(", "),
+        writing: legacy.writing,
+        designNotes: product.orderType === "SEMI_CUSTOM" ? designNotes : undefined,
+        allergyNotes: allergyNotes || undefined,
+        portions,
+      });
+      onCancel();
+      router.push("/order");
+      return;
+    }
+
+    if (product.allowFlavor && !singleFlavor.trim()) {
+      setError("Please choose a flavor.");
+      return;
+    }
+
     addItem({
       id: crypto.randomUUID(),
       productId: product.id,
@@ -251,10 +302,10 @@ function LegacyCakeForm({
       orderType: product.orderType,
       unitPriceCents: product.basePriceCents,
       quantity,
-      flavor: product.allowFlavor ? flavor : undefined,
-      frosting: product.allowFrosting ? frosting : undefined,
-      toppings: product.allowTopping ? selectedToppings : undefined,
-      writing: product.allowWriting ? writing : undefined,
+      flavor: product.allowFlavor ? singleFlavor : undefined,
+      frosting: product.allowFrosting ? singleFrosting : undefined,
+      toppings: product.allowTopping ? singleToppings : undefined,
+      writing: product.allowWriting ? singleWriting : undefined,
       designNotes: product.orderType === "SEMI_CUSTOM" ? designNotes : undefined,
       allergyNotes: allergyNotes || undefined,
     });
@@ -266,53 +317,56 @@ function LegacyCakeForm({
     <div className="mt-8 space-y-4 border-t border-[var(--blush)] pt-8">
       <h3 className="font-semibold">Customize your order</h3>
       <div>
-        <label className="label">Quantity</label>
-        <input type="number" min={1} value={quantity} onChange={(e) => setQuantity(Number(e.target.value))} className="input max-w-[120px]" />
+        <label className="label">{getQuantityLabel(product.piecesPerOrderUnit)}</label>
+        <input
+          type="number"
+          min={1}
+          value={quantity}
+          onChange={(e) => {
+            setQuantity(Number(e.target.value));
+            setPortions(null);
+          }}
+          className="input max-w-[120px]"
+        />
+        {product.piecesPerOrderUnit > 1 && (
+          <p className="mt-1 text-xs text-[var(--warm-gray)]">
+            Each order = {product.piecesPerOrderUnit} treats ({quantity * product.piecesPerOrderUnit} total)
+          </p>
+        )}
       </div>
-      {product.allowFlavor && (
-        <div>
-          <label className="label">Flavor</label>
-          <select value={flavor} onChange={(e) => setFlavor(e.target.value)} className="input">
-            {flavors.map((f) => <option key={f} value={f}>{f}</option>)}
-          </select>
-        </div>
-      )}
-      {product.allowFrosting && (
-        <div>
-          <label className="label">Frosting</label>
-          <select value={frosting} onChange={(e) => setFrosting(e.target.value)} className="input">
-            <option>Buttercream</option>
-            <option>Whipped</option>
-          </select>
-        </div>
-      )}
-      {product.allowTopping && (
-        <div>
-          <label className="label">Toppings (optional)</label>
-          <div className="flex flex-wrap gap-2">
-            {toppings.map((t) => (
-              <label key={t} className="flex items-center gap-1 rounded-full border border-[var(--blush)] px-3 py-1 text-sm">
-                <input
-                  type="checkbox"
-                  checked={selectedToppings.includes(t)}
-                  onChange={(e) =>
-                    setSelectedToppings((prev) =>
-                      e.target.checked ? [...prev, t] : prev.filter((x) => x !== t)
-                    )
-                  }
-                />
-                {t}
-              </label>
-            ))}
-          </div>
-        </div>
-      )}
-      {product.allowWriting && (
-        <div>
-          <label className="label">Writing on top (optional)</label>
-          <input value={writing} onChange={(e) => setWriting(e.target.value)} className="input" placeholder="Happy Birthday!" />
-        </div>
-      )}
+
+      <SplitPortionCustomizer
+        maxFlavorOptions={product.maxFlavorOptions}
+        splittableContext={{
+          formType: "SIMPLE",
+          quantity,
+          piecesPerOrderUnit: product.piecesPerOrderUnit,
+        }}
+        config={{
+          allowFlavor: product.allowFlavor,
+          allowFrosting: product.allowFrosting,
+          allowTopping: product.allowTopping,
+          allowWriting: product.allowWriting,
+          flavors,
+          frostings,
+          toppings,
+        }}
+        singleValues={{
+          flavor: singleFlavor,
+          frosting: singleFrosting,
+          toppings: singleToppings,
+          writing: singleWriting,
+        }}
+        onSingleChange={(data) => {
+          if (data.flavor !== undefined) setSingleFlavor(data.flavor);
+          if (data.frosting !== undefined) setSingleFrosting(data.frosting);
+          if (data.toppings !== undefined) setSingleToppings(data.toppings);
+          if (data.writing !== undefined) setSingleWriting(data.writing);
+        }}
+        portions={portions}
+        onPortionsChange={setPortions}
+      />
+
       {product.orderType === "SEMI_CUSTOM" && (
         <div>
           <label className="label">Design / theme description *</label>
@@ -323,8 +377,9 @@ function LegacyCakeForm({
         <label className="label">Allergy or dietary notes (optional)</label>
         <textarea value={allergyNotes} onChange={(e) => setAllergyNotes(e.target.value)} className="input min-h-[80px]" placeholder="Gluten free, nut allergy, etc." />
       </div>
+      {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="flex gap-3">
-        <button type="button" onClick={handleAddCake} className="btn-primary" disabled={product.orderType === "SEMI_CUSTOM" && !designNotes.trim()}>
+        <button type="button" onClick={handleAddCake} className="btn-primary">
           Add to Cart
         </button>
         <button type="button" onClick={onCancel} className="btn-secondary">Cancel</button>
