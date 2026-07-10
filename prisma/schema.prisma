@@ -34,6 +34,12 @@ enum FulfillmentType {
   DELIVERY
 }
 
+enum PreferredContactMethod {
+  EMAIL
+  PHONE
+  EITHER
+}
+
 enum CategoryFormType {
   SIMPLE
   CUPCAKE
@@ -218,6 +224,7 @@ model Order {
   customerName        String
   customerEmail       String
   customerPhone       String?
+  preferredContactMethod PreferredContactMethod?
   fulfillmentType     FulfillmentType
   deliveryAddress     String?
   scheduledDate       DateTime        @db.Date
@@ -264,6 +271,7 @@ model QuoteRequest {
   customerName      String
   customerEmail     String
   customerPhone     String?
+  preferredContactMethod PreferredContactMethod?
   occasion          String
   scheduledDate     DateTime    @db.Date
   servings          Int?

@@ -36,6 +36,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           customerName: parsed.customerName,
           customerEmail: parsed.customerEmail,
           customerPhone: parsed.customerPhone,
+          preferredContactMethod: parsed.preferredContactMethod,
         });
       }
     } catch {

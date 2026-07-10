@@ -3,10 +3,13 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ORDERING_PATHS } from "@/lib/ordering-paths";
+import { PreferredContactMethodField } from "@/components/order/PreferredContactMethodField";
 
 export default function CustomOrderPage() {
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [photos, setPhotos] = useState<string[]>([]);
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [preferredContactMethod, setPreferredContactMethod] = useState("");
 
   async function handlePhotoFiles(files: FileList | null) {
     if (!files) return;
@@ -34,6 +37,7 @@ export default function CustomOrderPage() {
         customerName: form.get("customerName"),
         customerEmail: form.get("customerEmail"),
         customerPhone: form.get("customerPhone"),
+        preferredContactMethod: preferredContactMethod || undefined,
         occasion: form.get("occasion"),
         scheduledDate: form.get("scheduledDate"),
         servings: Number(form.get("servings")) || null,
@@ -118,8 +122,22 @@ export default function CustomOrderPage() {
         </div>
         <div>
           <label className="label">Phone (optional)</label>
-          <input name="customerPhone" className="input" />
+          <input
+            name="customerPhone"
+            className="input"
+            value={customerPhone}
+            onChange={(e) => {
+              const value = e.target.value;
+              setCustomerPhone(value);
+              if (!value.trim()) setPreferredContactMethod("");
+            }}
+          />
         </div>
+        <PreferredContactMethodField
+          phone={customerPhone}
+          value={preferredContactMethod}
+          onChange={setPreferredContactMethod}
+        />
         <button type="submit" disabled={status === "loading"} className="btn-primary w-full">
           {status === "loading" ? "Submitting..." : "Submit Request"}
         </button>

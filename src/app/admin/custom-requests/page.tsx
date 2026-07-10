@@ -22,6 +22,7 @@ export default async function AdminCustomRequestsPage() {
           customerName: q.customerName,
           customerEmail: q.customerEmail,
           customerPhone: q.customerPhone,
+          preferredContactMethod: q.preferredContactMethod,
           occasion: q.occasion,
           scheduledDate: q.scheduledDate.toISOString(),
           description: q.description,

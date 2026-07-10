@@ -11,6 +11,8 @@ import { OrderSteps } from "@/components/order/OrderSteps";
 import { RushOrderNotice } from "@/components/order/RushOrderNotice";
 import { isPastScheduledDate, isRushOrderDate, RUSH_FEE_CENTS, todayDateInputValue } from "@/lib/rush-order";
 import { ORDERING_PATHS } from "@/lib/ordering-paths";
+import { PreferredContactMethodField } from "@/components/order/PreferredContactMethodField";
+import { hasMultipleContactMethods } from "@/lib/preferred-contact";
 
 type Settings = {
   orderMinimumCents: number;
@@ -80,6 +82,9 @@ export default function OrderPage() {
     if (step === 5) {
       if (!meta.customerName?.trim()) e.name = "Please enter your name.";
       if (!meta.customerEmail?.trim()) e.email = "Please enter your email.";
+      if (hasMultipleContactMethods(meta.customerPhone) && !meta.preferredContactMethod) {
+        e.preferredContact = "Please choose how Brandy should contact you.";
+      }
     }
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -224,8 +229,27 @@ export default function OrderPage() {
           </div>
           <div>
             <label className="label">Phone (optional)</label>
-            <input className="input" value={meta.customerPhone ?? ""} onChange={(e) => setMeta({ ...meta, customerPhone: e.target.value })} />
+            <input
+              className="input"
+              value={meta.customerPhone ?? ""}
+              onChange={(e) => {
+                const customerPhone = e.target.value;
+                setMeta({
+                  ...meta,
+                  customerPhone,
+                  preferredContactMethod: customerPhone.trim()
+                    ? meta.preferredContactMethod
+                    : undefined,
+                });
+              }}
+            />
           </div>
+          <PreferredContactMethodField
+            phone={meta.customerPhone ?? ""}
+            value={meta.preferredContactMethod ?? ""}
+            onChange={(preferredContactMethod) => setMeta({ ...meta, preferredContactMethod: preferredContactMethod as typeof meta.preferredContactMethod })}
+            error={errors.preferredContact}
+          />
           <div className="rounded-xl bg-[var(--cream)] p-4 text-sm space-y-1">
             <p>Subtotal: {formatCents(subtotalCents)}</p>
             {deliveryFee > 0 && <p>Delivery: {formatCents(deliveryFee)}</p>}

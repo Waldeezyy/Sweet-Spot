@@ -3,6 +3,11 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { sendQuoteRequestToAdmin } from "@/lib/email";
 import { format } from "date-fns";
+import {
+  hasMultipleContactMethods,
+  normalizePreferredContact,
+  preferredContactMethodSchema,
+} from "@/lib/preferred-contact";
 
 const optionalText = z
   .string()
@@ -12,18 +17,29 @@ const optionalText = z
     return trimmed ? trimmed : undefined;
   });
 
-const schema = z.object({
-  customerName: z.string().trim().min(1),
-  customerEmail: z.string().trim().email(),
-  customerPhone: optionalText,
-  occasion: z.string().trim().min(1),
-  scheduledDate: z.string().min(1),
-  servings: z.number().int().positive().nullable().optional(),
-  description: z.string().trim().min(1),
-  dietaryNotes: optionalText,
-  budgetRange: optionalText,
-  inspirationPhotos: z.array(z.string()).optional(),
-});
+const schema = z
+  .object({
+    customerName: z.string().trim().min(1),
+    customerEmail: z.string().trim().email(),
+    customerPhone: optionalText,
+    preferredContactMethod: preferredContactMethodSchema.optional(),
+    occasion: z.string().trim().min(1),
+    scheduledDate: z.string().min(1),
+    servings: z.number().int().positive().nullable().optional(),
+    description: z.string().trim().min(1),
+    dietaryNotes: optionalText,
+    budgetRange: optionalText,
+    inspirationPhotos: z.array(z.string()).optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (hasMultipleContactMethods(data.customerPhone) && !data.preferredContactMethod) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Preferred contact method is required when a phone number is provided.",
+        path: ["preferredContactMethod"],
+      });
+    }
+  });
 
 export async function GET() {
   const quotes = await prisma.quoteRequest.findMany({ orderBy: { createdAt: "desc" } });
@@ -38,6 +54,10 @@ export async function POST(req: Request) {
   }
 
   const data = parsed.data;
+  const preferredContactMethod = normalizePreferredContact(
+    data.customerPhone,
+    data.preferredContactMethod
+  );
 
   try {
     const quote = await prisma.quoteRequest.create({
@@ -45,6 +65,7 @@ export async function POST(req: Request) {
         customerName: data.customerName,
         customerEmail: data.customerEmail,
         customerPhone: data.customerPhone,
+        preferredContactMethod,
         occasion: data.occasion,
         scheduledDate: new Date(data.scheduledDate),
         servings: data.servings,
@@ -60,6 +81,7 @@ export async function POST(req: Request) {
         customerName: data.customerName,
         customerEmail: data.customerEmail,
         customerPhone: data.customerPhone,
+        preferredContactMethod,
         occasion: data.occasion,
         scheduledDate: format(new Date(data.scheduledDate), "MMM d, yyyy"),
         description: data.description,

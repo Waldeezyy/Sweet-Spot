@@ -7,6 +7,7 @@ import { format } from "date-fns";
 import { formatOrderItemLine } from "@/lib/order-item-display";
 import { STATUS_LABELS } from "@/lib/order-tracking";
 import { RUSH_FEE_CENTS } from "@/lib/rush-order";
+import { preferredContactLabel } from "@/lib/preferred-contact";
 
 type OrderItem = {
   productName: string;
@@ -25,6 +26,8 @@ type Order = {
   status: string;
   customerName: string;
   customerEmail: string;
+  customerPhone: string | null;
+  preferredContactMethod: "EMAIL" | "PHONE" | "EITHER" | null;
   scheduledDate: string;
   totalCents: number;
   finalTotalCents: number | null;
@@ -230,6 +233,14 @@ export function OrdersManager({ orders: initial }: { orders: Order[] }) {
           <div className="card max-h-[90vh] max-w-lg overflow-y-auto">
             <h3 className="font-semibold">{selected.orderNumber}</h3>
             <p className="text-sm">{selected.customerName} — {selected.customerEmail}</p>
+            {selected.customerPhone && (
+              <p className="text-sm text-[var(--warm-gray)]">Phone: {selected.customerPhone}</p>
+            )}
+            {preferredContactLabel(selected.preferredContactMethod) && (
+              <p className="text-sm text-[var(--warm-gray)]">
+                Preferred contact: <strong>{preferredContactLabel(selected.preferredContactMethod)}</strong>
+              </p>
+            )}
             {selected.isRush && !selected.hasSemiCustom && (
               <p className="mt-1 text-sm text-amber-900">
                 Rush order · {formatCents(RUSH_FEE_CENTS)} fee added on approval

@@ -2,7 +2,8 @@ import { format } from "date-fns";
 import { formatCents } from "@/lib/utils";
 import { formatOrderItemLine } from "@/lib/order-item-display";
 import { getReadyMessage } from "@/lib/order-tracking";
-import type { FulfillmentType } from "@prisma/client";
+import { preferredContactLabel } from "@/lib/preferred-contact";
+import type { FulfillmentType, PreferredContactMethod } from "@prisma/client";
 
 export type OrderEmailItem = {
   productName: string;
@@ -187,6 +188,7 @@ export function buildCustomerContactHtml(params: {
   customerName: string;
   customerEmail: string;
   customerPhone?: string | null;
+  preferredContactMethod?: PreferredContactMethod | null;
 }): string {
   const lines = [
     `<strong>${params.customerName}</strong>`,
@@ -194,6 +196,10 @@ export function buildCustomerContactHtml(params: {
   ];
   if (params.customerPhone) {
     lines.push(params.customerPhone);
+  }
+  const preferredLabel = preferredContactLabel(params.preferredContactMethod);
+  if (preferredLabel) {
+    lines.push(`<strong>Preferred contact:</strong> ${preferredLabel}`);
   }
   return `
     <h2 style="font-size: 16px; margin: 24px 0 8px;">Customer</h2>
@@ -216,6 +222,7 @@ export function buildAdminOrderNotificationHtml(params: {
   customerName: string;
   customerEmail: string;
   customerPhone?: string | null;
+  preferredContactMethod?: PreferredContactMethod | null;
   totalCents: number;
   finalTotalCents?: number | null;
   scheduledDate?: string;
@@ -236,6 +243,7 @@ export function buildAdminOrderNotificationHtml(params: {
         customerName: params.customerName,
         customerEmail: params.customerEmail,
         customerPhone: params.customerPhone,
+        preferredContactMethod: params.preferredContactMethod,
       })}
       ${
         params.scheduledDate && params.fulfillmentType

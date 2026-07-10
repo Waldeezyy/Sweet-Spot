@@ -37,6 +37,8 @@ export default async function AdminOrdersPage() {
           status: o.status,
           customerName: o.customerName,
           customerEmail: o.customerEmail,
+          customerPhone: o.customerPhone,
+          preferredContactMethod: o.preferredContactMethod,
           scheduledDate: o.scheduledDate.toISOString(),
           totalCents: o.totalCents,
           finalTotalCents: o.finalTotalCents,

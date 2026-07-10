@@ -29,6 +29,7 @@ export async function convertQuoteToOrder(
       customerName: quote.customerName,
       customerEmail: quote.customerEmail,
       customerPhone: quote.customerPhone,
+      preferredContactMethod: quote.preferredContactMethod,
       fulfillmentType: "PICKUP",
       scheduledDate: quote.scheduledDate,
       subtotalCents: totalCents,

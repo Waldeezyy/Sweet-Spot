@@ -18,8 +18,9 @@ import {
   buildTrackButtonHtml,
   type OrderEmailItem,
 } from "@/lib/order-email-html";
-import type { FulfillmentType } from "@prisma/client";
+import type { FulfillmentType, PreferredContactMethod } from "@prisma/client";
 import { isSquareConfigured } from "@/lib/square";
+import { preferredContactLabel } from "@/lib/preferred-contact";
 
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
@@ -134,6 +135,7 @@ export async function sendAdminNewOrder(params: {
   customerName: string;
   customerEmail: string;
   customerPhone?: string | null;
+  preferredContactMethod?: PreferredContactMethod | null;
   totalCents: number;
   finalTotalCents?: number | null;
   scheduledDate?: string;
@@ -163,6 +165,7 @@ export async function sendAdminNewOrder(params: {
     customerName: params.customerName,
     customerEmail: params.customerEmail,
     customerPhone: params.customerPhone,
+    preferredContactMethod: params.preferredContactMethod,
     totalCents: params.totalCents,
     finalTotalCents: params.finalTotalCents,
     scheduledDate: params.scheduledDate,
@@ -293,6 +296,7 @@ export async function sendQuoteRequestToAdmin(params: {
   customerName: string;
   customerEmail: string;
   customerPhone?: string | null;
+  preferredContactMethod?: PreferredContactMethod | null;
   occasion: string;
   scheduledDate: string;
   description?: string;
@@ -316,6 +320,7 @@ export async function sendQuoteRequestToAdmin(params: {
         customerName: params.customerName,
         customerEmail: params.customerEmail,
         customerPhone: params.customerPhone,
+        preferredContactMethod: params.preferredContactMethod,
       })}
       <h2 style="font-size: 16px; margin: 24px 0 8px;">Request details</h2>
       <p style="margin: 0; color: #5c5348; line-height: 1.6;">${details.join("<br/>")}</p>
@@ -331,6 +336,7 @@ export async function sendRushRequestToAdmin(params: {
   customerName: string;
   customerEmail: string;
   customerPhone?: string | null;
+  preferredContactMethod?: PreferredContactMethod | null;
   scheduledDate: string;
   totalCents: number;
   fulfillmentType: FulfillmentType;
@@ -347,6 +353,7 @@ export async function sendRushRequestToAdmin(params: {
     customerName: params.customerName,
     customerEmail: params.customerEmail,
     customerPhone: params.customerPhone,
+    preferredContactMethod: params.preferredContactMethod,
     totalCents: params.totalCents,
     scheduledDate: params.scheduledDate,
     fulfillmentType: params.fulfillmentType,
@@ -461,6 +468,7 @@ export async function sendCustomOrderRequestToAdmin(params: {
   customerName: string;
   customerEmail: string;
   customerPhone?: string | null;
+  preferredContactMethod?: PreferredContactMethod | null;
   scheduledDate: string;
   totalCents: number;
   fulfillmentType: FulfillmentType;
@@ -478,6 +486,7 @@ export async function sendCustomOrderRequestToAdmin(params: {
     customerName: params.customerName,
     customerEmail: params.customerEmail,
     customerPhone: params.customerPhone,
+    preferredContactMethod: params.preferredContactMethod,
     totalCents: params.totalCents,
     scheduledDate: params.scheduledDate,
     fulfillmentType: params.fulfillmentType,
@@ -561,11 +570,26 @@ export async function sendOrderQuoteDeclined(params: {
 export async function sendContactForm(params: {
   name: string;
   email: string;
+  phone?: string | null;
+  preferredContactMethod?: PreferredContactMethod | null;
   message: string;
 }) {
+  const contactLines = [
+    `<p>From: <strong>${escapeHtml(params.name)}</strong></p>`,
+    `<p>Email: <a href="mailto:${params.email}">${escapeHtml(params.email)}</a></p>`,
+  ];
+  if (params.phone) {
+    contactLines.push(`<p>Phone: ${escapeHtml(params.phone)}</p>`);
+  }
+  const preferredLabel = preferredContactLabel(params.preferredContactMethod);
+  if (preferredLabel) {
+    contactLines.push(`<p><strong>Preferred contact:</strong> ${preferredLabel}</p>`);
+  }
+  contactLines.push(`<p>${escapeHtml(params.message)}</p>`);
+
   await sendEmail(
     adminEmail,
     `Contact form — ${params.name}`,
-    `<p>From: ${params.name} (${params.email})</p><p>${params.message}</p>`
+    contactLines.join("")
   );
 }

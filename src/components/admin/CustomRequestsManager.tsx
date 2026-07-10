@@ -5,6 +5,7 @@ import { useState } from "react";
 import { formatCents } from "@/lib/utils";
 import { format } from "date-fns";
 import { QUOTE_STATUS_LABELS } from "@/lib/quotes";
+import { preferredContactLabel } from "@/lib/preferred-contact";
 
 type Quote = {
   id: string;
@@ -12,6 +13,7 @@ type Quote = {
   customerName: string;
   customerEmail: string;
   customerPhone: string | null;
+  preferredContactMethod: "EMAIL" | "PHONE" | "EITHER" | null;
   occasion: string;
   scheduledDate: string;
   description: string;
@@ -140,6 +142,11 @@ export function CustomRequestsManager({ quotes }: { quotes: Quote[] }) {
                 <a href={`tel:${selected.customerPhone}`} className="btn-secondary inline-flex text-sm">
                   Call / text {selected.customerPhone}
                 </a>
+              </p>
+            )}
+            {preferredContactLabel(selected.preferredContactMethod) && (
+              <p className="mt-2 text-sm text-[var(--warm-gray)]">
+                Preferred contact: <strong>{preferredContactLabel(selected.preferredContactMethod)}</strong>
               </p>
             )}
             <p className="mt-4 text-sm whitespace-pre-line">{selected.description}</p>

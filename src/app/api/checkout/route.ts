@@ -17,17 +17,33 @@ import {
   sendCustomOrderRequestToAdmin,
 } from "@/lib/email";
 import { isPastScheduledDate, isRushOrderDate } from "@/lib/rush-order";
+import {
+  hasMultipleContactMethods,
+  normalizePreferredContact,
+  preferredContactMethodSchema,
+} from "@/lib/preferred-contact";
 
 const schema = z.object({
   items: z.array(z.any()),
-  meta: z.object({
-    fulfillmentType: z.enum(["PICKUP", "DELIVERY"]),
-    deliveryAddress: z.string().optional(),
-    scheduledDate: z.string(),
-    customerName: z.string(),
-    customerEmail: z.string().email(),
-    customerPhone: z.string().optional(),
-  }),
+  meta: z
+    .object({
+      fulfillmentType: z.enum(["PICKUP", "DELIVERY"]),
+      deliveryAddress: z.string().optional(),
+      scheduledDate: z.string(),
+      customerName: z.string(),
+      customerEmail: z.string().email(),
+      customerPhone: z.string().optional(),
+      preferredContactMethod: preferredContactMethodSchema.optional(),
+    })
+    .superRefine((meta, ctx) => {
+      if (hasMultipleContactMethods(meta.customerPhone) && !meta.preferredContactMethod) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Preferred contact method is required when a phone number is provided.",
+          path: ["preferredContactMethod"],
+        });
+      }
+    }),
   totalCents: z.number(),
   deliveryFeeCents: z.number(),
   paymentChoice: z.enum(["deposit", "full"]).optional(),
@@ -65,6 +81,10 @@ export async function POST(req: Request) {
         customerName: meta.customerName,
         customerEmail: meta.customerEmail,
         customerPhone: meta.customerPhone,
+        preferredContactMethod: normalizePreferredContact(
+          meta.customerPhone,
+          meta.preferredContactMethod
+        ),
         fulfillmentType: meta.fulfillmentType,
         deliveryAddress: meta.deliveryAddress,
         scheduledDate: new Date(meta.scheduledDate),
@@ -111,6 +131,7 @@ export async function POST(req: Request) {
         customerName: order.customerName,
         customerEmail: order.customerEmail,
         customerPhone: order.customerPhone,
+        preferredContactMethod: order.preferredContactMethod,
         scheduledDate: scheduledLabel,
         totalCents: order.totalCents,
         fulfillmentType: order.fulfillmentType,
@@ -133,6 +154,7 @@ export async function POST(req: Request) {
       customerName: order.customerName,
       customerEmail: order.customerEmail,
       customerPhone: order.customerPhone,
+      preferredContactMethod: order.preferredContactMethod,
       scheduledDate: scheduledLabel,
       totalCents: order.totalCents,
       fulfillmentType: order.fulfillmentType,
@@ -163,6 +185,10 @@ export async function POST(req: Request) {
       customerName: meta.customerName,
       customerEmail: meta.customerEmail,
       customerPhone: meta.customerPhone,
+      preferredContactMethod: normalizePreferredContact(
+        meta.customerPhone,
+        meta.preferredContactMethod
+      ),
       fulfillmentType: meta.fulfillmentType,
       deliveryAddress: meta.deliveryAddress,
       scheduledDate: new Date(meta.scheduledDate),
@@ -209,6 +235,7 @@ export async function POST(req: Request) {
       customerName: paid.customerName,
       customerEmail: paid.customerEmail,
       customerPhone: paid.customerPhone,
+      preferredContactMethod: paid.preferredContactMethod,
       totalCents: paid.totalCents,
       scheduledDate: format(paid.scheduledDate, "EEEE, MMMM d, yyyy"),
       fulfillmentType: paid.fulfillmentType,

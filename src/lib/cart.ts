@@ -31,6 +31,7 @@ export type CartState = {
   customerName?: string;
   customerEmail?: string;
   customerPhone?: string;
+  preferredContactMethod?: "EMAIL" | "PHONE" | "EITHER";
 };
 
 export const CART_STORAGE_KEY = "bssweetspot-cart";
