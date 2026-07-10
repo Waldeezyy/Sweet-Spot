@@ -24,9 +24,11 @@ const FORM_TYPE_LABELS: Record<CategoryFormType, string> = {
 
 export function CategoriesManager({ categories: initial }: { categories: Category[] }) {
   const router = useRouter();
+  const [categories, setCategories] = useState(initial);
   const [toast, setToast] = useState("");
   const [editing, setEditing] = useState<Category | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [reordering, setReordering] = useState(false);
 
   function notify(msg: string) {
     setToast(msg);
@@ -53,7 +55,32 @@ export function CategoriesManager({ categories: initial }: { categories: Categor
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ isActive: !cat.isActive }),
     });
+    setCategories((prev) =>
+      prev.map((c) => (c.id === cat.id ? { ...c, isActive: !c.isActive } : c))
+    );
     notify(cat.isActive ? "Category hidden" : "Category live!");
+  }
+
+  async function persistOrder(next: Category[]) {
+    setReordering(true);
+    const res = await fetch("/api/admin/categories/reorder", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderedIds: next.map((c) => c.id) }),
+    });
+    setReordering(false);
+    if (res.ok) {
+      setCategories(next.map((c, index) => ({ ...c, sortOrder: index })));
+      notify("Menu order updated!");
+    }
+  }
+
+  function moveCategory(index: number, direction: -1 | 1) {
+    const target = index + direction;
+    if (target < 0 || target >= categories.length) return;
+    const next = [...categories];
+    [next[index], next[target]] = [next[target], next[index]];
+    void persistOrder(next);
   }
 
   return (
@@ -71,14 +98,40 @@ export function CategoriesManager({ categories: initial }: { categories: Categor
         />
       )}
 
-      <div className="mt-8 space-y-4">
-        {initial.map((cat) => (
+      <p className="mt-6 text-sm text-[var(--warm-gray)]">
+        Use the arrows to change the order categories appear on your menu page.
+      </p>
+
+      <div className="mt-4 space-y-4">
+        {categories.map((cat, index) => (
           <div key={cat.id} className={`card flex flex-wrap items-center justify-between gap-4 ${!cat.isActive ? "opacity-50" : ""}`}>
-            <div>
-              <p className="font-semibold">{cat.name}</p>
-              <p className="text-sm text-[var(--warm-gray)]">
-                {FORM_TYPE_LABELS[cat.formType]} · {cat._count.products} items
-              </p>
+            <div className="flex items-center gap-3">
+              <div className="flex flex-col gap-1">
+                <button
+                  type="button"
+                  onClick={() => moveCategory(index, -1)}
+                  disabled={index === 0 || reordering}
+                  className="btn-secondary px-2 py-1 text-xs disabled:opacity-40"
+                  aria-label={`Move ${cat.name} up`}
+                >
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  onClick={() => moveCategory(index, 1)}
+                  disabled={index === categories.length - 1 || reordering}
+                  className="btn-secondary px-2 py-1 text-xs disabled:opacity-40"
+                  aria-label={`Move ${cat.name} down`}
+                >
+                  ↓
+                </button>
+              </div>
+              <div>
+                <p className="font-semibold">{cat.name}</p>
+                <p className="text-sm text-[var(--warm-gray)]">
+                  {FORM_TYPE_LABELS[cat.formType]} · {cat._count.products} items
+                </p>
+              </div>
             </div>
             <div className="flex gap-2">
               <button type="button" onClick={() => { setEditing(cat); setShowForm(false); }} className="btn-secondary text-sm">Edit</button>
@@ -104,14 +157,13 @@ function CategoryForm({
 }) {
   const [name, setName] = useState(initial?.name ?? "");
   const [formType, setFormType] = useState<CategoryFormType>(initial?.formType ?? "SIMPLE");
-  const [sortOrder, setSortOrder] = useState(initial?.sortOrder ?? 0);
 
   return (
     <form
       className="card mt-6 space-y-4"
       onSubmit={(e) => {
         e.preventDefault();
-        onSave({ name, formType, sortOrder });
+        onSave({ name, formType });
       }}
     >
       <h3 className="font-semibold">{initial ? "Edit category" : "New category"}</h3>
@@ -126,10 +178,6 @@ function CategoryForm({
             <option key={value} value={value}>{label}</option>
           ))}
         </select>
-      </div>
-      <div>
-        <label className="label">Sort order</label>
-        <input type="number" value={sortOrder} onChange={(e) => setSortOrder(Number(e.target.value))} className="input max-w-[120px]" />
       </div>
       <div className="flex gap-3">
         <button type="submit" className="btn-primary">Save</button>

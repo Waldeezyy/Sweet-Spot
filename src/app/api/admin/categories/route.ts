@@ -24,12 +24,13 @@ export async function POST(req: Request) {
     sortOrder: z.number().int().optional(),
   }).parse(await req.json());
   const slug = data.slug ?? slugify(data.name);
+  const maxSort = await prisma.category.aggregate({ _max: { sortOrder: true } });
   const category = await prisma.category.create({
     data: {
       name: data.name,
       slug,
       formType: data.formType ?? "SIMPLE",
-      sortOrder: data.sortOrder ?? 0,
+      sortOrder: data.sortOrder ?? (maxSort._max.sortOrder ?? -1) + 1,
     },
   });
   return NextResponse.json(category);

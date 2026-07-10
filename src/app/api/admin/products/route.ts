@@ -30,8 +30,18 @@ export async function POST(req: Request) {
   if (!parsed.success) return NextResponse.json({ error: "Invalid data" }, { status: 400 });
 
   const slug = slugify(parsed.data.name);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- sortOrder is assigned automatically
+  const { sortOrder, ...rest } = parsed.data;
+  const maxSort = await prisma.product.aggregate({
+    where: { categoryId: parsed.data.categoryId },
+    _max: { sortOrder: true },
+  });
   const product = await prisma.product.create({
-    data: { ...parsed.data, slug: `${slug}-${Date.now()}` },
+    data: {
+      ...rest,
+      slug: `${slug}-${Date.now()}`,
+      sortOrder: (maxSort._max.sortOrder ?? -1) + 1,
+    },
   });
   return NextResponse.json(product);
 }

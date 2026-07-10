@@ -19,13 +19,66 @@ export type SplittableContext = {
   piecesPerOrderUnit?: number;
 };
 
-export function getQuantityLabel(piecesPerOrderUnit: number): string {
-  if (piecesPerOrderUnit <= 1) return "How many?";
-  return `How many orders? (${piecesPerOrderUnit} pieces each)`;
+export function getTreatDisplayName(categorySlug?: string): string {
+  if (categorySlug === "cookies") return "cookies";
+  if (categorySlug === "cupcakes") return "cupcakes";
+  if (categorySlug === "mini-cakes") return "mini cakes";
+  return "treats";
 }
 
-export function getTreatUnitLabel(): string {
-  return "pieces";
+/** @deprecated Use getTreatDisplayName(categorySlug) for customer-facing copy */
+export function getTreatUnitLabel(categorySlug?: string): string {
+  return getTreatDisplayName(categorySlug);
+}
+
+export function getQuantityLabel(piecesPerOrderUnit: number, categorySlug?: string): string {
+  if (piecesPerOrderUnit <= 1) return "How many?";
+  if (piecesPerOrderUnit === 12) return "How many dozen?";
+  const treats = getTreatDisplayName(categorySlug);
+  return `How many? (${piecesPerOrderUnit} ${treats} each)`;
+}
+
+export function getOrderQuantityHelper(
+  quantity: number,
+  piecesPerOrderUnit: number,
+  categorySlug?: string
+): string | null {
+  if (piecesPerOrderUnit <= 1) return null;
+  const treats = getTreatDisplayName(categorySlug);
+  const total = quantity * piecesPerOrderUnit;
+  if (piecesPerOrderUnit === 12) {
+    if (quantity === 1) return `1 dozen = 12 ${treats}`;
+    return `You're ordering ${quantity} dozen (${total} ${treats})`;
+  }
+  if (quantity === 1) return `1 order = ${piecesPerOrderUnit} ${treats}`;
+  return `You're ordering ${quantity} (${total} ${treats} total)`;
+}
+
+export function getSplitSummary(
+  splitCount: number,
+  portionSize: number,
+  categorySlug?: string
+): string {
+  const treats = getTreatDisplayName(categorySlug);
+  return `${splitCount} flavors — ${portionSize} ${treats} each`;
+}
+
+export function getFlavorGroupLabel(
+  index: number,
+  count: number,
+  categorySlug?: string
+): string {
+  const treats = getTreatDisplayName(categorySlug);
+  return `Flavor ${index + 1} (${count} ${treats})`;
+}
+
+export function getFlavorValidationMessage(index: number, splitCount: number): string {
+  if (splitCount === 2) {
+    return index === 0
+      ? "Please pick a flavor for the first half."
+      : "Please pick a flavor for the second half.";
+  }
+  return `Please pick a flavor for flavor ${index + 1}.`;
 }
 
 export function getOrderUnits(ctx: SplittableContext): number {
@@ -55,10 +108,10 @@ export function canSplitEvenly(totalUnits: number, splitCount: number): boolean 
   return getPortionSize(totalUnits, splitCount) !== null;
 }
 
-export function splitCountError(totalUnits: number, splitCount: number): string | null {
-  if (splitCount < 2) return null;
-  if (totalUnits % splitCount !== 0) {
-    return `Cannot split ${totalUnits} treats evenly into ${splitCount} groups. Try a different number of combinations.`;
+export function splitCountError(_totalUnits: number, _splitCount: number): string | null {
+  if (_splitCount < 2) return null;
+  if (_totalUnits % _splitCount !== 0) {
+    return "That won't split evenly — try a different number of flavors.";
   }
   return null;
 }
@@ -101,18 +154,20 @@ export function validatePortions(
   opts: {
     requireFlavor?: boolean;
     requireFrosting?: boolean;
+    categorySlug?: string;
   } = {}
 ): string | null {
+  const treats = getTreatDisplayName(opts.categorySlug);
   const sum = portions.reduce((s, p) => s + p.count, 0);
   if (sum !== totalUnits) {
-    return `Portion counts must add up to ${totalUnits} treats (currently ${sum}).`;
+    return `Your flavors need to add up to ${totalUnits} ${treats} total.`;
   }
   for (let i = 0; i < portions.length; i++) {
     if (opts.requireFlavor && !portions[i].flavor?.trim()) {
-      return `Please choose a flavor for combination ${i + 1}.`;
+      return getFlavorValidationMessage(i, portions.length);
     }
     if (opts.requireFrosting && !portions[i].frosting?.trim()) {
-      return `Please choose a frosting for combination ${i + 1}.`;
+      return `Please pick a frosting for flavor ${i + 1}.`;
     }
   }
   return null;

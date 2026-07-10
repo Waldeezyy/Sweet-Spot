@@ -14,7 +14,9 @@ import { SheetCakeForm } from "@/components/storefront/SheetCakeForm";
 import { SplitPortionCustomizer } from "@/components/storefront/SplitPortionCustomizer";
 import type { OrderPortion } from "@/lib/order-portions";
 import {
+  getFlavorValidationMessage,
   getMaxSplitCombinations,
+  getOrderQuantityHelper,
   getOrderUnits,
   getQuantityLabel,
   normalizePortionsToLegacyFields,
@@ -261,6 +263,7 @@ function LegacyCakeForm({
     product.maxFlavorOptions,
     getOrderUnits({ formType: "SIMPLE", quantity })
   );
+  const quantityHelper = getOrderQuantityHelper(quantity, product.piecesPerOrderUnit, categorySlug);
 
   function handleAddCake() {
     if (product.orderType === "SEMI_CUSTOM" && !designNotes.trim()) {
@@ -269,9 +272,9 @@ function LegacyCakeForm({
     }
 
     if (portions && portions.length > 0) {
-      for (const p of portions) {
-        if (product.allowFlavor && !p.flavor?.trim()) {
-          setError("Please choose a flavor for each combination.");
+      for (let i = 0; i < portions.length; i++) {
+        if (product.allowFlavor && !portions[i].flavor?.trim()) {
+          setError(getFlavorValidationMessage(i, portions.length));
           return;
         }
       }
@@ -327,7 +330,7 @@ function LegacyCakeForm({
     <div className="mt-8 space-y-4 border-t border-[var(--blush)] pt-8">
       <h3 className="font-semibold">Customize your order</h3>
       <div>
-        <label className="label">{getQuantityLabel(product.piecesPerOrderUnit)}</label>
+        <label className="label">{getQuantityLabel(product.piecesPerOrderUnit, categorySlug)}</label>
         <input
           type="number"
           min={1}
@@ -338,15 +341,14 @@ function LegacyCakeForm({
           }}
           className="input max-w-[120px]"
         />
-        {product.piecesPerOrderUnit > 1 && (
-          <p className="mt-1 text-xs text-[var(--warm-gray)]">
-            Each order = {product.piecesPerOrderUnit} pieces ({quantity * product.piecesPerOrderUnit} total)
-          </p>
+        {quantityHelper && (
+          <p className="mt-1 text-xs text-[var(--warm-gray)]">{quantityHelper}</p>
         )}
       </div>
 
       <SplitPortionCustomizer
         maxSplitCombinations={maxSplitCombinations}
+        categorySlug={categorySlug}
         splittableContext={{
           formType: "SIMPLE",
           quantity,

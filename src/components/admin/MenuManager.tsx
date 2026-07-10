@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { formatCents } from "@/lib/utils";
 
 type Product = {
@@ -38,6 +38,7 @@ export function MenuManager({
   const [products, setProducts] = useState(initial);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
   const [toast, setToast] = useState("");
 
   function notify(msg: string) {
@@ -64,14 +65,11 @@ export function MenuManager({
   }
 
   async function deleteProduct(id: string) {
-    const product = products.find((p) => p.id === id);
-    if (!product) return;
-    if (!window.confirm(`Permanently delete "${product.name}" from the menu? This cannot be undone.`)) return;
-
     const res = await fetch(`/api/admin/products/${id}`, { method: "DELETE" });
     if (res.ok) {
       setProducts((prev) => prev.filter((p) => p.id !== id));
       notify("Item deleted from menu.");
+      setDeleteTarget(null);
       closeForm();
       router.refresh();
     }
@@ -149,11 +147,76 @@ export function MenuManager({
                 initial={p}
                 onSave={(data) => saveProduct(p.id, data)}
                 onCancel={closeForm}
-                onDelete={() => deleteProduct(p.id)}
+                onDelete={() => setDeleteTarget(p)}
               />
             )}
           </div>
         ))}
+      </div>
+
+      {deleteTarget && (
+        <DeleteProductDialog
+          productName={deleteTarget.name}
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={() => deleteProduct(deleteTarget.id)}
+        />
+      )}
+    </div>
+  );
+}
+
+function DeleteProductDialog({
+  productName,
+  onConfirm,
+  onCancel,
+}: {
+  productName: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const [confirmText, setConfirmText] = useState("");
+  const canDelete = confirmText === "DELETE";
+
+  useEffect(() => {
+    setConfirmText("");
+  }, [productName]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="card w-full max-w-md space-y-4" role="dialog" aria-modal="true" aria-labelledby="delete-product-title">
+        <h3 id="delete-product-title" className="font-semibold text-red-700">
+          Delete from menu?
+        </h3>
+        <p className="text-sm text-[var(--warm-gray)]">
+          This will permanently remove <strong>{productName}</strong> from your menu. This cannot be undone.
+        </p>
+        <div>
+          <label className="label" htmlFor="delete-confirm-input">
+            Type <strong>DELETE</strong> to confirm
+          </label>
+          <input
+            id="delete-confirm-input"
+            value={confirmText}
+            onChange={(e) => setConfirmText(e.target.value)}
+            className="input"
+            autoComplete="off"
+            autoFocus
+            placeholder="DELETE"
+          />
+        </div>
+        <div className="flex flex-wrap gap-3">
+          <button type="button" onClick={onCancel} className="btn-secondary">
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={!canDelete}
+            className="btn-secondary text-red-600 disabled:opacity-40"
+          >
+            Delete permanently
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -179,7 +242,6 @@ function ProductForm({
   const [orderType, setOrderType] = useState(initial?.orderType ?? "STANDARD");
   const [categoryId, setCategoryId] = useState(initial?.categoryId ?? categories[0]?.id ?? "");
   const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? "");
-  const [sortOrder, setSortOrder] = useState(initial?.sortOrder ?? 0);
   const [allowFlavor, setAllowFlavor] = useState(initial?.allowFlavor ?? true);
   const [allowTopping, setAllowTopping] = useState(initial?.allowTopping ?? true);
   const [allowFrosting, setAllowFrosting] = useState(initial?.allowFrosting ?? true);
@@ -217,7 +279,6 @@ function ProductForm({
           isStartingPrice,
           orderType,
           imageUrl: imageUrl || null,
-          sortOrder,
           allowFlavor,
           allowTopping,
           allowFrosting,
@@ -258,10 +319,6 @@ function ProductForm({
           <option value="STANDARD">Standard item (fixed checkout)</option>
           <option value="SEMI_CUSTOM">Custom item (Brandy reviews price)</option>
         </select>
-      </div>
-      <div>
-        <label className="label">Sort order (lower shows first)</label>
-        <input type="number" value={sortOrder} onChange={(e) => setSortOrder(Number(e.target.value))} className="input max-w-[120px]" />
       </div>
       <div>
         <label className="label">Photo</label>

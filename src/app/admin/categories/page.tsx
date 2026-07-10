@@ -16,7 +16,7 @@ export default async function CategoriesPage() {
     <div>
       <h1 className="font-[family-name:var(--font-display)] text-3xl font-bold">Categories</h1>
       <p className="mt-2 text-[var(--warm-gray)]">
-        Organize your menu and choose how customers customize items in each category.
+        Organize your menu and choose how customers customize items in each category. Use the arrows to set the order categories show on your menu page.
       </p>
       <CategoriesManager categories={categories} />
     </div>

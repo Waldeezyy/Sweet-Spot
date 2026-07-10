@@ -9,6 +9,7 @@ import {
 } from "@/lib/cake-pricing";
 import type { OrderPortion } from "@/lib/order-portions";
 import {
+  getFlavorValidationMessage,
   getMaxSplitCombinations,
   getOrderUnits,
   normalizePortionsToLegacyFields,
@@ -71,9 +72,9 @@ export function CupcakeForm({
     }
 
     if (maxSplitCombinations > 1 && portions && portions.length > 0) {
-      for (const p of portions) {
-        if (!p.flavor?.trim()) {
-          setError(`Please choose a flavor for each combination.`);
+      for (let i = 0; i < portions.length; i++) {
+        if (!portions[i].flavor?.trim()) {
+          setError(getFlavorValidationMessage(i, portions.length));
           return;
         }
       }
@@ -135,6 +136,7 @@ export function CupcakeForm({
 
       <SplitPortionCustomizer
         maxSplitCombinations={maxSplitCombinations}
+        categorySlug="cupcakes"
         splittableContext={{ formType: "CUPCAKE", dozenCount, piecesPerOrderUnit }}
         config={{
           allowFlavor: true,

@@ -4,10 +4,12 @@ import { useEffect, useState } from "react";
 import type { OrderPortion } from "@/lib/order-portions";
 import {
   canSplitEvenly,
+  getFlavorGroupLabel,
   getOrderUnits,
   getPortionSize,
+  getSplitSummary,
   getTotalSplittableUnits,
-  getTreatUnitLabel,
+  getTreatDisplayName,
   splitCountError,
   validatePortions,
 } from "@/lib/order-portions";
@@ -26,6 +28,7 @@ export type PortionCustomizationConfig = {
 
 type Props = {
   maxSplitCombinations: number;
+  categorySlug?: string;
   splittableContext: {
     formType?: CategoryFormType | string;
     dozenCount?: number;
@@ -57,6 +60,7 @@ function emptyPortion(count: number): OrderPortion {
 
 export function SplitPortionCustomizer({
   maxSplitCombinations,
+  categorySlug,
   splittableContext,
   config,
   onSingleChange,
@@ -66,7 +70,7 @@ export function SplitPortionCustomizer({
 }: Props) {
   const orderUnits = getOrderUnits(splittableContext);
   const totalUnits = getTotalSplittableUnits(splittableContext);
-  const treatLabel = getTreatUnitLabel();
+  const treats = getTreatDisplayName(categorySlug);
   const [splitMode, setSplitMode] = useState(false);
   const [splitCount, setSplitCount] = useState(2);
 
@@ -127,7 +131,7 @@ export function SplitPortionCustomizer({
   return (
     <div className="space-y-4">
       <div>
-        <p className="label">Flavor combinations</p>
+        <p className="label">Want one flavor or a mix?</p>
         <div className="mt-2 flex flex-wrap gap-3">
           <label className={`flex cursor-pointer items-center gap-2 rounded-xl border-2 px-4 py-2 text-sm ${!splitMode ? "border-[var(--chocolate)] bg-[var(--blush)]/30" : "border-[var(--blush)]"}`}>
             <input
@@ -135,16 +139,19 @@ export function SplitPortionCustomizer({
               checked={!splitMode}
               onChange={() => handleModeChange(false)}
             />
-            One combination for all {totalUnits} {treatLabel}
+            Same flavor for all {totalUnits} {treats}
           </label>
-          <label className={`flex cursor-pointer items-center gap-2 rounded-xl border-2 px-4 py-2 text-sm ${splitMode ? "border-[var(--chocolate)] bg-[var(--blush)]/30" : "border-[var(--blush)]"}`}>
-            <input
-              type="radio"
-              checked={splitMode}
-              onChange={() => handleModeChange(true)}
-              disabled={totalUnits < 2}
-            />
-            Split into multiple combinations
+          <label className={`flex cursor-pointer flex-col gap-0.5 rounded-xl border-2 px-4 py-2 text-sm ${splitMode ? "border-[var(--chocolate)] bg-[var(--blush)]/30" : "border-[var(--blush)]"}`}>
+            <span className="flex items-center gap-2">
+              <input
+                type="radio"
+                checked={splitMode}
+                onChange={() => handleModeChange(true)}
+                disabled={totalUnits < 2}
+              />
+              Mix flavors
+            </span>
+            <span className="pl-6 text-xs text-[var(--warm-gray)]">like half chocolate, half vanilla</span>
           </label>
         </div>
       </div>
@@ -158,7 +165,7 @@ export function SplitPortionCustomizer({
       ) : (
         <>
           <div>
-            <label className="label">How many combinations?</label>
+            <label className="label">How many different flavors?</label>
             <div className="mt-2 flex flex-wrap gap-2">
               {Array.from({ length: maxSplitCombinations - 1 }, (_, i) => i + 2).map((n) => (
                 <button
@@ -177,7 +184,7 @@ export function SplitPortionCustomizer({
             {splitError && <p className="mt-2 text-sm text-red-600">{splitError}</p>}
             {portionSize && !splitError && (
               <p className="mt-2 text-sm text-[var(--warm-gray)]">
-                Split into {splitCount} groups of {portionSize} {treatLabel} each
+                {getSplitSummary(splitCount, portionSize, categorySlug)}
               </p>
             )}
           </div>
@@ -185,7 +192,7 @@ export function SplitPortionCustomizer({
           {portions?.map((portion, index) => (
             <div key={index} className="rounded-xl border border-[var(--blush)] bg-[var(--cream)]/50 p-4 space-y-3">
               <p className="font-medium text-sm">
-                Combination {index + 1} — {portion.count} {treatLabel}
+                {getFlavorGroupLabel(index, portion.count, categorySlug)}
               </p>
               {config.allowFlavor && config.flavors.length > 0 && (
                 <div>
@@ -376,17 +383,19 @@ export function validateSplitSubmission(
   config: PortionCustomizationConfig,
   singleValues: Props["singleValues"],
   portions: OrderPortion[] | null,
-  splitMode: boolean
+  splitMode: boolean,
+  categorySlug?: string
 ): string | null {
   const totalUnits = getTotalSplittableUnits(splittableContext);
   if (maxSplitCombinations <= 1 || !splitMode || !portions) {
     if (config.allowFlavor && !singleValues.flavor?.trim()) {
-      return "Please choose a flavor.";
+      return "Please pick a flavor.";
     }
     return null;
   }
   return validatePortions(portions, totalUnits, {
     requireFlavor: config.allowFlavor && config.flavors.length > 0,
     requireFrosting: false,
+    categorySlug,
   });
 }
