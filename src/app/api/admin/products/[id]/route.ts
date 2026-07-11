@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireAdminApi } from "@/lib/admin-api";
+import { priceTiersSchema } from "@/lib/product-price-tiers";
 
 const schema = z.object({
   name: z.string().min(1).optional(),
@@ -19,6 +21,7 @@ const schema = z.object({
   allowWriting: z.boolean().optional(),
   maxFlavorOptions: z.number().int().min(1).max(6).optional(),
   piecesPerOrderUnit: z.number().int().min(1).optional(),
+  priceTiers: priceTiersSchema.optional().nullable(),
 });
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -29,7 +32,16 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const parsed = schema.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: "Invalid data" }, { status: 400 });
 
-  const product = await prisma.product.update({ where: { id }, data: parsed.data });
+  const { priceTiers, ...rest } = parsed.data;
+  const product = await prisma.product.update({
+    where: { id },
+    data: {
+      ...rest,
+      ...(priceTiers !== undefined && {
+        priceTiers: priceTiers === null ? Prisma.JsonNull : priceTiers,
+      }),
+    },
+  });
   return NextResponse.json(product);
 }
 

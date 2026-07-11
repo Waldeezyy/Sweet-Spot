@@ -4,11 +4,11 @@ import { useState } from "react";
 import { formatCents } from "@/lib/utils";
 import type { MenuAddOn } from "@/lib/menu-options";
 import { sumAddOnCentsFromList } from "@/lib/menu-options";
-import { SHEET_CAKE_INFO, getSheetCakePriceCents } from "@/lib/cake-pricing";
 
 type Props = {
-  productSlug: string;
   productName: string;
+  orderType: string;
+  isStartingPrice: boolean;
   basePriceCents: number;
   flavors: string[];
   addOnOptions: MenuAddOn[];
@@ -25,9 +25,18 @@ type Props = {
   onCancel: () => void;
 };
 
-export function SheetCakeForm({ productSlug, productName, basePriceCents, flavors, addOnOptions, onSubmit, onCancel }: Props) {
-  const isCustom = productSlug.startsWith("custom-");
-  const sheetInfo = SHEET_CAKE_INFO[productSlug];
+export function SheetCakeForm({
+  productName,
+  orderType,
+  isStartingPrice,
+  basePriceCents,
+  flavors,
+  addOnOptions,
+  onSubmit,
+  onCancel,
+}: Props) {
+  const isCustom = orderType === "SEMI_CUSTOM";
+  const showStartingAt = isStartingPrice || isCustom;
   const [flavor, setFlavor] = useState(flavors[0] ?? "");
   const [frosting, setFrosting] = useState("Buttercream");
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
@@ -36,9 +45,8 @@ export function SheetCakeForm({ productSlug, productName, basePriceCents, flavor
   const [allergyNotes, setAllergyNotes] = useState("");
   const [error, setError] = useState("");
 
-  const baseCents = getSheetCakePriceCents(productSlug, isCustom, basePriceCents);
   const addOnCents = sumAddOnCentsFromList(selectedAddOns, addOnOptions);
-  const unitPriceCents = baseCents + addOnCents;
+  const unitPriceCents = basePriceCents + addOnCents;
 
   function toggleAddOn(slug: string) {
     setSelectedAddOns((prev) => (prev.includes(slug) ? prev.filter((x) => x !== slug) : [...prev, slug]));
@@ -65,11 +73,6 @@ export function SheetCakeForm({ productSlug, productName, basePriceCents, flavor
   return (
     <div className="mt-8 space-y-4 border-t border-[var(--blush)] pt-8">
       <h3 className="font-semibold">Customize your sheet cake</h3>
-      {sheetInfo && (
-        <p className="rounded-xl bg-[var(--blush)]/40 p-3 text-sm text-[var(--warm-gray)]">
-          {sheetInfo.label} — serves {sheetInfo.serves}
-        </p>
-      )}
 
       <div>
         <label className="label">Flavor</label>
@@ -137,7 +140,7 @@ export function SheetCakeForm({ productSlug, productName, basePriceCents, flavor
       </div>
 
       <p className="text-sm font-semibold text-[var(--rose)]">
-        {isCustom ? "Starting at " : ""}{formatCents(unitPriceCents)}
+        {showStartingAt ? "Starting at " : ""}{formatCents(unitPriceCents)}
         {addOnCents > 0 && <span className="font-normal text-[var(--warm-gray)]"> (includes add-ons)</span>}
       </p>
 

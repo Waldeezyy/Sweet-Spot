@@ -4,22 +4,20 @@ import { useState } from "react";
 import { formatCents } from "@/lib/utils";
 import type { MenuAddOn } from "@/lib/menu-options";
 import { sumAddOnCentsFromList } from "@/lib/menu-options";
-import {
-  ROUND_CAKE_SIZES,
-  type RoundCakeSizeId,
-  getRoundCakePriceCents,
-} from "@/lib/cake-pricing";
+import type { ProductPriceTier } from "@/lib/product-price-tiers";
+import { getDefaultTierId, getTierById, getTierPrice } from "@/lib/product-price-tiers";
 
 type Props = {
-  productSlug: string;
   productName: string;
-  basePriceCents: number;
+  orderType: string;
+  isStartingPrice: boolean;
+  priceTiers: ProductPriceTier[];
   flavors: string[];
   addOnOptions: MenuAddOn[];
   onSubmit: (data: {
     flavor: string;
     frosting: string;
-    cakeSize: RoundCakeSizeId;
+    cakeSize: string;
     addOns: string[];
     writing: string;
     designNotes: string;
@@ -30,9 +28,19 @@ type Props = {
   onCancel: () => void;
 };
 
-export function RoundCakeForm({ productSlug, productName, basePriceCents, flavors, addOnOptions, onSubmit, onCancel }: Props) {
-  const isCustom = productSlug === "custom-round-cake";
-  const [cakeSize, setCakeSize] = useState<RoundCakeSizeId>("6");
+export function RoundCakeForm({
+  productName,
+  orderType,
+  isStartingPrice,
+  priceTiers,
+  flavors,
+  addOnOptions,
+  onSubmit,
+  onCancel,
+}: Props) {
+  const isCustom = orderType === "SEMI_CUSTOM";
+  const showStartingAt = isStartingPrice || isCustom;
+  const [cakeSize, setCakeSize] = useState(getDefaultTierId(priceTiers));
   const [flavor, setFlavor] = useState(flavors[0] ?? "");
   const [frosting, setFrosting] = useState("Buttercream");
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
@@ -41,10 +49,10 @@ export function RoundCakeForm({ productSlug, productName, basePriceCents, flavor
   const [allergyNotes, setAllergyNotes] = useState("");
   const [error, setError] = useState("");
 
-  const baseCents = getRoundCakePriceCents(cakeSize, isCustom, basePriceCents);
+  const baseCents = getTierPrice(priceTiers, cakeSize);
   const addOnCents = sumAddOnCentsFromList(selectedAddOns, addOnOptions);
   const unitPriceCents = baseCents + addOnCents;
-  const sizeInfo = ROUND_CAKE_SIZES.find((s) => s.id === cakeSize);
+  const sizeInfo = getTierById(priceTiers, cakeSize);
 
   function toggleAddOn(slug: string) {
     setSelectedAddOns((prev) => (prev.includes(slug) ? prev.filter((x) => x !== slug) : [...prev, slug]));
@@ -77,32 +85,32 @@ export function RoundCakeForm({ productSlug, productName, basePriceCents, flavor
       <div>
         <label className="label">Size</label>
         <div className="space-y-2">
-          {ROUND_CAKE_SIZES.map((size) => {
-            const price = isCustom ? size.customStartCents : size.basicCents;
-            return (
-              <label
-                key={size.id}
-                className={`flex cursor-pointer items-center justify-between rounded-xl border-2 p-3 ${
-                  cakeSize === size.id ? "border-[var(--chocolate)] bg-[var(--blush)]/30" : "border-[var(--blush)]"
-                }`}
-              >
-                <span className="flex items-center gap-2">
-                  <input
-                    type="radio"
-                    name="cakeSize"
-                    checked={cakeSize === size.id}
-                    onChange={() => setCakeSize(size.id)}
-                  />
-                  <span>
-                    {size.label} <span className="text-sm text-[var(--warm-gray)]">(serves {size.serves})</span>
-                  </span>
+          {priceTiers.map((size) => (
+            <label
+              key={size.id}
+              className={`flex cursor-pointer items-center justify-between rounded-xl border-2 p-3 ${
+                cakeSize === size.id ? "border-[var(--chocolate)] bg-[var(--blush)]/30" : "border-[var(--blush)]"
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="cakeSize"
+                  checked={cakeSize === size.id}
+                  onChange={() => setCakeSize(size.id)}
+                />
+                <span>
+                  {size.label}
+                  {size.serves && (
+                    <span className="text-sm text-[var(--warm-gray)]"> (serves {size.serves})</span>
+                  )}
                 </span>
-                <span className="font-semibold text-[var(--rose)]">
-                  {isCustom ? "from " : ""}{formatCents(price)}
-                </span>
-              </label>
-            );
-          })}
+              </span>
+              <span className="font-semibold text-[var(--rose)]">
+                {showStartingAt ? "from " : ""}{formatCents(size.priceCents)}
+              </span>
+            </label>
+          ))}
         </div>
       </div>
 
@@ -172,7 +180,7 @@ export function RoundCakeForm({ productSlug, productName, basePriceCents, flavor
       </div>
 
       <p className="text-sm font-semibold text-[var(--rose)]">
-        {isCustom ? "Starting at " : ""}{formatCents(unitPriceCents)}
+        {showStartingAt ? "Starting at " : ""}{formatCents(unitPriceCents)}
         {addOnCents > 0 && <span className="font-normal text-[var(--warm-gray)]"> (includes add-ons)</span>}
       </p>
 

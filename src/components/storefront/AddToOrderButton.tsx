@@ -13,6 +13,7 @@ import { RoundCakeForm } from "@/components/storefront/RoundCakeForm";
 import { SheetCakeForm } from "@/components/storefront/SheetCakeForm";
 import { SplitPortionCustomizer } from "@/components/storefront/SplitPortionCustomizer";
 import type { OrderPortion } from "@/lib/order-portions";
+import type { ProductPriceTier } from "@/lib/product-price-tiers";
 import {
   getFlavorValidationMessage,
   getMaxSplitCombinations,
@@ -28,6 +29,7 @@ type Props = {
     name: string;
     slug: string;
     basePriceCents: number;
+    isStartingPrice: boolean;
     orderType: OrderType;
     allowFlavor: boolean;
     allowTopping: boolean;
@@ -35,6 +37,7 @@ type Props = {
     allowWriting: boolean;
     maxFlavorOptions: number;
     piecesPerOrderUnit: number;
+    priceTiers: ProductPriceTier[] | null;
   };
   categorySlug: string;
   categoryFormType: CategoryFormType;
@@ -116,13 +119,13 @@ export function AddToOrderButton({
     );
   }
 
-  if (cupcakeMode) {
+  if (cupcakeMode && product.priceTiers) {
     return (
       <CupcakeForm
-        productSlug={product.slug}
         productName={product.name}
         orderType={product.orderType}
-        basePriceCents={product.basePriceCents}
+        isStartingPrice={product.isStartingPrice}
+        priceTiers={product.priceTiers}
         maxFlavorOptions={product.maxFlavorOptions}
         piecesPerOrderUnit={product.piecesPerOrderUnit}
         flavors={flavors}
@@ -151,12 +154,13 @@ export function AddToOrderButton({
     );
   }
 
-  if (roundCakeMode) {
+  if (roundCakeMode && product.priceTiers) {
     return (
       <RoundCakeForm
-        productSlug={product.slug}
         productName={product.name}
-        basePriceCents={product.basePriceCents}
+        orderType={product.orderType}
+        isStartingPrice={product.isStartingPrice}
+        priceTiers={product.priceTiers}
         flavors={flavors}
         addOnOptions={addOnOptions}
         onSubmit={(data) => {
@@ -190,8 +194,9 @@ export function AddToOrderButton({
   if (sheetCakeMode) {
     return (
       <SheetCakeForm
-        productSlug={product.slug}
         productName={product.name}
+        orderType={product.orderType}
+        isStartingPrice={product.isStartingPrice}
         basePriceCents={product.basePriceCents}
         flavors={flavors}
         addOnOptions={addOnOptions}

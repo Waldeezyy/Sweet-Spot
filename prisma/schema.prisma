@@ -123,6 +123,7 @@ model Product {
   allowWriting      Boolean     @default(true)
   maxFlavorOptions  Int         @default(1)
   piecesPerOrderUnit Int        @default(1)
+  priceTiers        Json?
   categoryId      String
   category        Category    @relation(fields: [categoryId], references: [id])
   createdAt       DateTime    @default(now())

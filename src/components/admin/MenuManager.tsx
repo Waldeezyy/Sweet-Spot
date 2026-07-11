@@ -3,6 +3,14 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { formatCents } from "@/lib/utils";
+import type { ProductPriceTier } from "@/lib/product-price-tiers";
+import {
+  defaultCupcakeTiers,
+  defaultRoundCakeTiers,
+  minTierPriceCents,
+  validatePriceTiers,
+} from "@/lib/product-price-tiers";
+import { ProductPriceTiersEditor } from "@/components/admin/ProductPriceTiersEditor";
 
 type Product = {
   id: string;
@@ -23,6 +31,7 @@ type Product = {
   allowWriting: boolean;
   maxFlavorOptions: number;
   piecesPerOrderUnit: number;
+  priceTiers: ProductPriceTier[] | null;
 };
 
 type Category = { id: string; name: string; formType: string };
@@ -249,10 +258,33 @@ function ProductForm({
   const [maxFlavorOptions, setMaxFlavorOptions] = useState(initial?.maxFlavorOptions ?? 1);
   const [piecesPerOrderUnit, setPiecesPerOrderUnit] = useState(initial?.piecesPerOrderUnit ?? 1);
   const [uploading, setUploading] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [priceTiers, setPriceTiers] = useState<ProductPriceTier[]>(() => {
+    if (initial?.priceTiers?.length) return initial.priceTiers;
+    const formType = categories.find((c) => c.id === (initial?.categoryId ?? categories[0]?.id))?.formType;
+    if (formType === "ROUND_CAKE") return defaultRoundCakeTiers(initial?.orderType);
+    if (formType === "CUPCAKE") return defaultCupcakeTiers(initial?.basePriceCents);
+    return [];
+  });
+  const [prevCategoryId, setPrevCategoryId] = useState(categoryId);
 
   const selectedCategory = categories.find((c) => c.id === categoryId);
   const showMaxFlavorOptions = selectedCategory?.formType !== "PARTY_PACKAGE";
   const showPiecesPerOrderUnit = showMaxFlavorOptions && maxFlavorOptions > 1;
+  const tieredPricing = selectedCategory?.formType === "ROUND_CAKE" || selectedCategory?.formType === "CUPCAKE";
+
+  useEffect(() => {
+    if (categoryId === prevCategoryId) return;
+    setPrevCategoryId(categoryId);
+    const cat = categories.find((c) => c.id === categoryId);
+    if (cat?.formType === "ROUND_CAKE") {
+      setPriceTiers(defaultRoundCakeTiers(orderType));
+    } else if (cat?.formType === "CUPCAKE") {
+      setPriceTiers(defaultCupcakeTiers(Math.round(parseFloat(price || "0") * 100) || undefined));
+    } else {
+      setPriceTiers([]);
+    }
+  }, [categoryId, categories, orderType, prevCategoryId, price]);
 
   async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -271,11 +303,26 @@ function ProductForm({
       className="card mt-2 space-y-4 border-2 border-[var(--chocolate)]/30"
       onSubmit={(e) => {
         e.preventDefault();
+        setFormError("");
+
+        let basePriceCents = Math.round(parseFloat(price) * 100);
+        let tiersPayload: ProductPriceTier[] | undefined;
+
+        if (tieredPricing && selectedCategory) {
+          const tierError = validatePriceTiers(selectedCategory.formType as "ROUND_CAKE" | "CUPCAKE", priceTiers);
+          if (tierError) {
+            setFormError(tierError);
+            return;
+          }
+          tiersPayload = priceTiers;
+          basePriceCents = minTierPriceCents(priceTiers);
+        }
+
         onSave({
           name,
           description,
           categoryId,
-          basePriceCents: Math.round(parseFloat(price) * 100),
+          basePriceCents,
           isStartingPrice,
           orderType,
           imageUrl: imageUrl || null,
@@ -285,6 +332,7 @@ function ProductForm({
           allowWriting,
           maxFlavorOptions: showMaxFlavorOptions ? maxFlavorOptions : 1,
           piecesPerOrderUnit: showMaxFlavorOptions && maxFlavorOptions > 1 ? piecesPerOrderUnit : 1,
+          ...(tiersPayload ? { priceTiers: tiersPayload } : {}),
         });
       }}
     >
@@ -298,15 +346,36 @@ function ProductForm({
         <textarea value={description} onChange={(e) => setDescription(e.target.value)} required className="input min-h-[100px]" />
       </div>
       <div className="flex gap-4">
-        <div className="flex-1">
-          <label className="label">Price ($)</label>
-          <input type="number" step="0.01" min="0" value={price} onChange={(e) => setPrice(e.target.value)} required className="input" />
-        </div>
+        {!tieredPricing && (
+          <div className="flex-1">
+            <label className="label">Price ($)</label>
+            <input type="number" step="0.01" min="0" value={price} onChange={(e) => setPrice(e.target.value)} required className="input" />
+          </div>
+        )}
+        {tieredPricing && priceTiers.length > 0 && (
+          <div className="flex-1">
+            <label className="label">Menu card price</label>
+            <p className="input flex items-center bg-[var(--cream)] text-[var(--warm-gray)]">
+              {isStartingPrice ? "Starting at " : ""}{formatCents(minTierPriceCents(priceTiers))}
+              <span className="ml-2 text-xs">(lowest tier)</span>
+            </p>
+          </div>
+        )}
         <label className="flex items-center gap-2 pt-8">
           <input type="checkbox" checked={isStartingPrice} onChange={(e) => setIsStartingPrice(e.target.checked)} />
           <span className="text-sm">Starting at price</span>
         </label>
       </div>
+
+      {tieredPricing && selectedCategory && (
+        <ProductPriceTiersEditor
+          formType={selectedCategory.formType as "ROUND_CAKE" | "CUPCAKE"}
+          orderType={orderType}
+          basePriceCents={Math.round(parseFloat(price || "0") * 100) || 0}
+          tiers={priceTiers}
+          onChange={setPriceTiers}
+        />
+      )}
       <div>
         <label className="label">Category</label>
         <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="input">
@@ -380,8 +449,9 @@ function ProductForm({
       )}
 
       <p className="text-xs text-[var(--warm-gray)]">
-        Cupcake, round cake, sheet cake, and party categories use their own order forms. Size/dozen pricing follows your flyer tiers.
+        Cupcake and round cake categories use the size/dozen pricing section above. Sheet cakes and other items use the price field.
       </p>
+      {formError && <p className="text-sm text-red-600">{formError}</p>}
       <div className="flex flex-wrap gap-3">
         <button type="submit" className="btn-primary">Save changes</button>
         <button type="button" onClick={onCancel} className="btn-secondary">Cancel</button>

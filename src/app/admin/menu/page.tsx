@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { MenuManager } from "@/components/admin/MenuManager";
+import { parsePriceTiers } from "@/lib/product-price-tiers";
 
 export default async function AdminMenuPage() {
   const session = await auth();
@@ -37,6 +38,7 @@ export default async function AdminMenuPage() {
           allowWriting: p.allowWriting,
           maxFlavorOptions: p.maxFlavorOptions,
           piecesPerOrderUnit: p.piecesPerOrderUnit,
+          priceTiers: parsePriceTiers(p.priceTiers),
         }))}
       />
     </div>

@@ -3,10 +3,8 @@
 import { useState } from "react";
 import type { OrderType } from "@prisma/client";
 import { formatCents } from "@/lib/utils";
-import {
-  getCupcakePriceCents,
-  CUPCAKE_PRICING,
-} from "@/lib/cake-pricing";
+import type { ProductPriceTier } from "@/lib/product-price-tiers";
+import { getTierPrice } from "@/lib/product-price-tiers";
 import type { OrderPortion } from "@/lib/order-portions";
 import {
   getFlavorValidationMessage,
@@ -19,10 +17,10 @@ import { SplitPortionCustomizer } from "@/components/storefront/SplitPortionCust
 const CUPCAKE_FROSTINGS = ["Vanilla buttercream", "Chocolate buttercream", "Whipped"];
 
 type Props = {
-  productSlug: string;
   productName: string;
   orderType: OrderType;
-  basePriceCents: number;
+  isStartingPrice: boolean;
+  priceTiers: ProductPriceTier[];
   maxFlavorOptions: number;
   piecesPerOrderUnit: number;
   flavors: string[];
@@ -40,10 +38,10 @@ type Props = {
 };
 
 export function CupcakeForm({
-  productSlug,
   productName,
   orderType,
-  basePriceCents,
+  isStartingPrice,
+  priceTiers,
   maxFlavorOptions,
   piecesPerOrderUnit,
   flavors,
@@ -58,8 +56,7 @@ export function CupcakeForm({
   const [singleFrosting, setSingleFrosting] = useState(CUPCAKE_FROSTINGS[0]);
   const [portions, setPortions] = useState<OrderPortion[] | null>(null);
 
-  const pricing = CUPCAKE_PRICING[productSlug];
-  const unitPriceCents = getCupcakePriceCents(productSlug, dozenCount, basePriceCents);
+  const unitPriceCents = getTierPrice(priceTiers, String(dozenCount));
   const maxSplitCombinations = getMaxSplitCombinations(
     maxFlavorOptions,
     getOrderUnits({ formType: "CUPCAKE", dozenCount })
@@ -128,7 +125,7 @@ export function CupcakeForm({
                 dozenCount === d ? "border-[var(--chocolate)] bg-[var(--blush)]/30" : "border-[var(--blush)]"
               }`}
             >
-              {d} dozen — {formatCents(getCupcakePriceCents(productSlug, d, basePriceCents))}
+              {d} dozen — {formatCents(getTierPrice(priceTiers, String(d)))}
             </button>
           ))}
         </div>
@@ -167,7 +164,7 @@ export function CupcakeForm({
             className="input min-h-[100px]"
             placeholder="Colors, toppers, theme, or inspiration..."
           />
-          {pricing?.isStartingPrice && (
+          {isStartingPrice && (
             <p className="mt-1 text-xs text-[var(--warm-gray)]">
               Starting at {formatCents(unitPriceCents)} per dozen — final price confirmed based on detail.
             </p>
@@ -186,7 +183,7 @@ export function CupcakeForm({
       </div>
 
       <p className="text-sm font-semibold text-[var(--rose)]">
-        {pricing?.isStartingPrice ? "Starting at " : ""}{formatCents(unitPriceCents)}
+        {isStartingPrice ? "Starting at " : ""}{formatCents(unitPriceCents)}
       </p>
 
       {error && <p className="text-sm text-red-600">{error}</p>}

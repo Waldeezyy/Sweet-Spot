@@ -69,6 +69,34 @@ type ProductSeed = {
   allowWriting?: boolean;
   maxFlavorOptions?: number;
   piecesPerOrderUnit?: number;
+  priceTiers?: { id: string; label: string; serves?: string; priceCents: number }[];
+};
+
+const BASIC_ROUND_CAKE_TIERS = [
+  { id: "6", label: '6" round', serves: "8–12", priceCents: 4000 },
+  { id: "8", label: '8" round', serves: "15–20", priceCents: 5500 },
+  { id: "10", label: '10" round', serves: "25–30", priceCents: 7000 },
+];
+
+const CUSTOM_ROUND_CAKE_TIERS = [
+  { id: "6", label: '6" round', serves: "8–12", priceCents: 5000 },
+  { id: "8", label: '8" round', serves: "15–20", priceCents: 6500 },
+  { id: "10", label: '10" round', serves: "25–30", priceCents: 8500 },
+];
+
+const CUPCAKE_TIER_PATCHES: Record<string, { id: string; label: string; priceCents: number }[]> = {
+  "standard-cupcakes": [
+    { id: "1", label: "1 dozen", priceCents: 2500 },
+    { id: "2", label: "2 dozen", priceCents: 4500 },
+  ],
+  "specialty-cupcakes": [
+    { id: "1", label: "1 dozen", priceCents: 3000 },
+    { id: "2", label: "2 dozen", priceCents: 5500 },
+  ],
+  "custom-cupcakes": [
+    { id: "1", label: "1 dozen", priceCents: 3500 },
+    { id: "2", label: "2 dozen", priceCents: 7000 },
+  ],
 };
 
 const PARTY_NO_CAKE_OPTIONS = {
@@ -100,11 +128,11 @@ const products: ProductSeed[] = [
   { name: "Custom Quarter Sheet Cake", slug: "custom-quarter-sheet-cake", description: "Quarter sheet (serves 20–25). Your choice of colors, frosting, and design. Starting at $65 — final price $65–$80 depending on detail.", basePriceCents: 6500, isStartingPrice: true, orderType: "SEMI_CUSTOM", categorySlug: "sheet-cakes", sortOrder: 2 },
   { name: "Basic Half Sheet", slug: "basic-half-sheet", description: "Half sheet (serves 40–50). Buttercream or whipped finish with your choice of writing on top. $80.", basePriceCents: 8000, categorySlug: "sheet-cakes", sortOrder: 3, orderType: "STANDARD" },
   { name: "Custom Half Sheet Cake", slug: "custom-half-sheet-cake", description: "Half sheet (serves 40–50). Your choice of colors, frosting, and design. Starting at $95 — final price $95–$120 depending on detail.", basePriceCents: 9500, isStartingPrice: true, orderType: "SEMI_CUSTOM", categorySlug: "sheet-cakes", sortOrder: 4 },
-  { name: "Basic 6-10 inch Round Cakes", slug: "basic-round-cakes", description: "Buttercream finish round cakes. 6\" serves 8–12 ($40) · 8\" serves 15–20 ($55) · 10\" serves 25–30 ($70). Choose size when ordering.", basePriceCents: 4000, isStartingPrice: true, categorySlug: "round-cakes", sortOrder: 5, orderType: "STANDARD" },
-  { name: "Custom 6-10 inch Round Cake", slug: "custom-round-cake", description: "Custom buttercream round cakes. 6\" from $50 ($50–$65) · 8\" from $65 ($65–$85) · 10\" from $85 ($85–$110). Choose size, colors, theme, and flavor when ordering.", basePriceCents: 5000, isStartingPrice: true, orderType: "SEMI_CUSTOM", categorySlug: "round-cakes", sortOrder: 6 },
-  { name: "Standard Cupcakes", slug: "standard-cupcakes", description: "Vanilla, Chocolate, or Marble. Frosted with vanilla buttercream or whipped. 1 dozen $25 · 2 dozen $45.", basePriceCents: 2500, categorySlug: "cupcakes", sortOrder: 7, orderType: "STANDARD" },
-  { name: "Specialty Cupcakes", slug: "specialty-cupcakes", description: "Strawberry, Red Velvet, Lemon, and more specialty flavors. 1 dozen $30 · 2 dozen $55.", basePriceCents: 3000, categorySlug: "cupcakes", sortOrder: 8, orderType: "STANDARD" },
-  { name: "Custom Cupcakes", slug: "custom-cupcakes", description: "Themed cupcakes with your choice of colors, toppers, and designs. Starting at $35/dozen ($35–$45 depending on detail). 2 dozen from $70.", basePriceCents: 3500, isStartingPrice: true, orderType: "SEMI_CUSTOM", categorySlug: "cupcakes", sortOrder: 9 },
+  { name: "Basic 6-10 inch Round Cakes", slug: "basic-round-cakes", description: "Buttercream finish round cakes. 6\" serves 8–12 ($40) · 8\" serves 15–20 ($55) · 10\" serves 25–30 ($70). Choose size when ordering.", basePriceCents: 4000, isStartingPrice: true, categorySlug: "round-cakes", sortOrder: 5, orderType: "STANDARD", priceTiers: BASIC_ROUND_CAKE_TIERS },
+  { name: "Custom 6-10 inch Round Cake", slug: "custom-round-cake", description: "Custom buttercream round cakes. 6\" from $50 ($50–$65) · 8\" from $65 ($65–$85) · 10\" from $85 ($85–$110). Choose size, colors, theme, and flavor when ordering.", basePriceCents: 5000, isStartingPrice: true, orderType: "SEMI_CUSTOM", categorySlug: "round-cakes", sortOrder: 6, priceTiers: CUSTOM_ROUND_CAKE_TIERS },
+  { name: "Standard Cupcakes", slug: "standard-cupcakes", description: "Vanilla, Chocolate, or Marble. Frosted with vanilla buttercream or whipped. 1 dozen $25 · 2 dozen $45.", basePriceCents: 2500, categorySlug: "cupcakes", sortOrder: 7, orderType: "STANDARD", priceTiers: CUPCAKE_TIER_PATCHES["standard-cupcakes"] },
+  { name: "Specialty Cupcakes", slug: "specialty-cupcakes", description: "Strawberry, Red Velvet, Lemon, and more specialty flavors. 1 dozen $30 · 2 dozen $55.", basePriceCents: 3000, categorySlug: "cupcakes", sortOrder: 8, orderType: "STANDARD", priceTiers: CUPCAKE_TIER_PATCHES["specialty-cupcakes"] },
+  { name: "Custom Cupcakes", slug: "custom-cupcakes", description: "Themed cupcakes with your choice of colors, toppers, and designs. Starting at $35/dozen ($35–$45 depending on detail). 2 dozen from $70.", basePriceCents: 3500, isStartingPrice: true, orderType: "SEMI_CUSTOM", categorySlug: "cupcakes", sortOrder: 9, priceTiers: CUPCAKE_TIER_PATCHES["custom-cupcakes"] },
   { name: "Small Party Package", slug: "small-party-package", description: PARTY_PRODUCT_PATCHES["small-party-package"].description, basePriceCents: 5500, categorySlug: "party-packages", sortOrder: 10, orderType: "STANDARD", ...PARTY_NO_CAKE_OPTIONS },
   { name: "Medium Party Package", slug: "medium-party-package", description: PARTY_PRODUCT_PATCHES["medium-party-package"].description, basePriceCents: 11000, categorySlug: "party-packages", sortOrder: 11, orderType: "STANDARD", ...PARTY_NO_CAKE_OPTIONS },
   { name: "Large Party Package", slug: "large-party-package", description: PARTY_PRODUCT_PATCHES["large-party-package"].description, basePriceCents: 16000, categorySlug: "party-packages", sortOrder: 12, orderType: "STANDARD", ...PARTY_NO_CAKE_OPTIONS },
@@ -143,6 +171,7 @@ export async function seedDatabase() {
     console.log("Database already seeded, skipping.");
     await ensurePartyPackageSettings();
     await ensureMenuCatalogPatches();
+    await ensureProductPriceTiersPatch();
     return;
   }
 
@@ -173,6 +202,7 @@ export async function seedDatabase() {
         allowWriting: p.allowWriting ?? true,
         maxFlavorOptions: p.maxFlavorOptions ?? 1,
         piecesPerOrderUnit: p.piecesPerOrderUnit ?? 1,
+        priceTiers: p.priceTiers ?? undefined,
       },
     });
   }
@@ -240,6 +270,7 @@ All cakes are made to order — fresh according to customer orders. Order in bul
   console.log("Database seeded successfully.");
   await ensurePartyPackageSettings();
   await ensureMenuCatalogPatches();
+  await ensureProductPriceTiersPatch();
 }
 
 const CATEGORY_FORM_TYPES: Record<string, "SIMPLE" | "CUPCAKE" | "ROUND_CAKE" | "SHEET_CAKE" | "PARTY_PACKAGE"> = {
@@ -316,6 +347,30 @@ export async function ensurePartyPackageSettings() {
     });
     if (result.count > 0) {
       console.log(`Updated party package: ${slug}`);
+    }
+  }
+}
+
+const PRICE_TIER_PATCHES: Record<string, { id: string; label: string; serves?: string; priceCents: number }[]> = {
+  "basic-round-cakes": BASIC_ROUND_CAKE_TIERS,
+  "custom-round-cake": CUSTOM_ROUND_CAKE_TIERS,
+  ...CUPCAKE_TIER_PATCHES,
+};
+
+/** Backfills priceTiers on round-cake and cupcake products when missing. */
+export async function ensureProductPriceTiersPatch() {
+  for (const [slug, tiers] of Object.entries(PRICE_TIER_PATCHES)) {
+    const products = await prisma.product.findMany({
+      where: { slug },
+      select: { id: true, priceTiers: true },
+    });
+    for (const product of products) {
+      if (product.priceTiers != null) continue;
+      await prisma.product.update({
+        where: { id: product.id },
+        data: { priceTiers: tiers },
+      });
+      console.log(`Backfilled price tiers: ${slug}`);
     }
   }
 }

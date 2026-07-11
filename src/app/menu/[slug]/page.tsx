@@ -4,14 +4,7 @@ import { prisma } from "@/lib/db";
 import { formatCents } from "@/lib/utils";
 import { AddToOrderButton } from "@/components/storefront/AddToOrderButton";
 import { getPartyPackageConfig } from "@/lib/party-packages";
-import {
-  CUPCAKE_PRICING,
-  ROUND_CAKE_SIZES,
-  SHEET_CAKE_INFO,
-  isCupcakeCategory,
-  isRoundCakeCategory,
-  isSheetCakeCategory,
-} from "@/lib/cake-pricing";
+import { resolveProductPriceTiers } from "@/lib/product-price-tiers";
 import { getActiveAddOns, getActiveTreatTypes, filterFlavorsForProduct, filterAddOnsForProduct, filterTreatTypesForProduct } from "@/lib/menu-options";
 
 export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -26,6 +19,8 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
     ? getPartyPackageConfig(product.slug)
     : null;
 
+  const priceTiers = resolveProductPriceTiers(product, product.category.formType);
+
   const [flavors, toppings, addOnOptions, treatTypes] = await Promise.all([
     prisma.flavorOption.findMany({ where: { isActive: true }, orderBy: { sortOrder: "asc" } }),
     prisma.toppingOption.findMany({ where: { isActive: true }, orderBy: { sortOrder: "asc" } }),
@@ -36,9 +31,6 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   const productFlavors = filterFlavorsForProduct(flavors, product.category.slug, product.slug);
   const productAddOns = filterAddOnsForProduct(addOnOptions, product.category.slug, product.slug);
   const productTreatTypes = filterTreatTypesForProduct(treatTypes, product.category.slug, product.slug);
-
-  const cupcakePricing = isCupcakeCategory(product.category.slug) ? CUPCAKE_PRICING[product.slug] : null;
-  const sheetInfo = isSheetCakeCategory(product.category.slug) ? SHEET_CAKE_INFO[product.slug] : null;
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-12">
@@ -55,45 +47,40 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
         </div>
         <p className="mt-6 whitespace-pre-line text-[var(--warm-gray)]">{product.description}</p>
 
-        {cupcakePricing && (
+        {product.category.formType === "CUPCAKE" && priceTiers && (
           <ul className="mt-4 space-y-1 text-sm text-[var(--warm-gray)]">
-            <li>1 dozen — {formatCents(cupcakePricing.oneDozenCents)}</li>
-            <li>2 dozen — {formatCents(cupcakePricing.twoDozenCents)}</li>
+            {priceTiers.map((tier) => (
+              <li key={tier.id}>
+                {tier.label} — {formatCents(tier.priceCents)}
+              </li>
+            ))}
           </ul>
         )}
 
-        {isRoundCakeCategory(product.category.slug) && (
+        {product.category.formType === "ROUND_CAKE" && priceTiers && (
           <div className="mt-4 overflow-x-auto">
             <table className="w-full text-sm text-[var(--warm-gray)]">
               <thead>
                 <tr className="border-b border-[var(--blush)] text-left">
                   <th className="py-2 pr-4">Size</th>
                   <th className="py-2 pr-4">Serves</th>
-                  <th className="py-2">
-                    {product.slug === "custom-round-cake" ? "Custom" : "Basic"}
-                  </th>
+                  <th className="py-2">Price</th>
                 </tr>
               </thead>
               <tbody>
-                {ROUND_CAKE_SIZES.map((size) => (
-                  <tr key={size.id} className="border-b border-[var(--blush)]/50">
-                    <td className="py-2 pr-4">{size.label}</td>
-                    <td className="py-2 pr-4">{size.serves}</td>
+                {priceTiers.map((tier) => (
+                  <tr key={tier.id} className="border-b border-[var(--blush)]/50">
+                    <td className="py-2 pr-4">{tier.label}</td>
+                    <td className="py-2 pr-4">{tier.serves ?? "—"}</td>
                     <td className="py-2">
-                      {formatCents(product.slug === "custom-round-cake" ? size.customStartCents : size.basicCents)}
-                      {product.slug === "custom-round-cake" && "+"}
+                      {formatCents(tier.priceCents)}
+                      {product.isStartingPrice && "+"}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        )}
-
-        {sheetInfo && (
-          <p className="mt-4 text-sm text-[var(--warm-gray)]">
-            {sheetInfo.label} — serves {sheetInfo.serves}
-          </p>
         )}
 
         {(product.category.formType === "ROUND_CAKE" || product.category.formType === "SHEET_CAKE") && (
@@ -132,6 +119,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
             name: product.name,
             slug: product.slug,
             basePriceCents: product.basePriceCents,
+            isStartingPrice: product.isStartingPrice,
             orderType: product.orderType,
             allowFlavor: product.allowFlavor,
             allowTopping: product.allowTopping,
@@ -139,6 +127,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
             allowWriting: product.allowWriting,
             maxFlavorOptions: product.maxFlavorOptions,
             piecesPerOrderUnit: product.piecesPerOrderUnit,
+            priceTiers,
           }}
           categorySlug={product.category.slug}
           categoryFormType={product.category.formType}
