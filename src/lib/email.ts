@@ -576,7 +576,7 @@ export async function sendContactForm(params: {
 }) {
   const contactLines = [
     `<p>From: <strong>${escapeHtml(params.name)}</strong></p>`,
-    `<p>Email: <a href="mailto:${params.email}">${escapeHtml(params.email)}</a></p>`,
+    `<p>Email: ${escapeHtml(params.email)}</p>`,
   ];
   if (params.phone) {
     contactLines.push(`<p>Phone: ${escapeHtml(params.phone)}</p>`);

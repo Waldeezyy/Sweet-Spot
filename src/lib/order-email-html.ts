@@ -193,7 +193,7 @@ export function buildCustomerContactHtml(params: {
 }): string {
   const lines = [
     `<strong>${params.customerName}</strong>`,
-    `<a href="mailto:${params.customerEmail}" style="color: #c97b84;">${params.customerEmail}</a>`,
+    params.customerEmail,
   ];
   if (params.customerPhone) {
     lines.push(params.customerPhone);
